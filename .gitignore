@@ -1,0 +1,22 @@
+# --- secrets: never commit these ---
+.env
+*.env.local
+firmware/node/secrets.h
+**/appsettings.*.local.json
+
+# --- web ---
+node_modules/
+web/dist/
+
+# --- .NET ---
+bin/
+obj/
+.vs/
+*.user
+
+# --- editors / OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

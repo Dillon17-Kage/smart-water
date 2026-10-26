@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Components use Tailwind classes built from these
+ * (bg-surface, text-ink-2, border-line ...), so light and dark mode
+ * switch here in one place. Dark mode follows the operating system.
+ */
+:root {
+  color-scheme: light;
+  --page: #f3f3f0;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #6e6d68;
+  --line: #e1e0d9;
+  --line-strong: #c3c2b7;
+  --accent: #256abf;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4effc;
+
+  /* chart series: colour follows the entity everywhere in the app */
+  --series-trunk: #2a78d6;
+  --series-return: #eb6834;
+  --series-zone-a: #1baf7a;
+  --series-zone-b: #6250d6;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
+
+  /* status (reserved, always shown with an icon and a label) */
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --good-soft: #e3f5e3;
+  --warning: #fab219;
+  --warning-ink: #7a5200;
+  --warning-soft: #fdf3dc;
+  --serious: #ec835a;
+  --serious-ink: #8a3a17;
+  --serious-soft: #fdebe3;
+  --critical: #d03b3b;
+  --critical-ink: #a32424;
+  --critical-soft: #fbe4e4;
+  --neutral-soft: #ebeae6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #242423;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-3: #9a9890;
+    --line: #2c2c2a;
+    --line-strong: #383835;
+    --accent: #3987e5;
+    --accent-ink: #ffffff;
+    --accent-soft: #16263b;
+
+    --series-trunk: #3987e5;
+    --series-return: #d95926;
+    --series-zone-a: #199e70;
+    --series-zone-b: #9085e9;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #898781;
+
+    --good-ink: #2fc42f;
+    --good-soft: #10260f;
+    --warning-ink: #fab219;
+    --warning-soft: #2b2310;
+    --serious-ink: #f09a77;
+    --serious-soft: #2e1a12;
+    --critical-ink: #ef7373;
+    --critical-soft: #331617;
+    --neutral-soft: #2a2a28;
+  }
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-ink: var(--good-ink);
+  --color-good-soft: var(--good-soft);
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-soft: var(--warning-soft);
+  --color-serious: var(--serious);
+  --color-serious-ink: var(--serious-ink);
+  --color-serious-soft: var(--serious-soft);
+  --color-critical: var(--critical);
+  --color-critical-ink: var(--critical-ink);
+  --color-critical-soft: var(--critical-soft);
+  --color-neutral-soft: var(--neutral-soft);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Animated flow along pipes in the network schematic */
+@keyframes pipe-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.pipe-flow {
+  stroke-dasharray: 6 18;
+  animation: pipe-flow 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pipe-flow {
+    animation: none;
+  }
+}

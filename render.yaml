@@ -1,0 +1,16 @@
+# Render Blueprint: one free web service that runs the backend and serves the web app.
+# In Render: New -> Blueprint -> pick this repo. Render reads this file and the Dockerfile.
+# Secrets are entered in the Render dashboard when it asks (sync: false), never stored here.
+services:
+  - type: web
+    name: smart-water
+    runtime: docker
+    plan: free
+    region: frankfurt           # same region as the Neon database
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true            # every push to GitHub redeploys
+    envVars:
+      - key: ConnectionStrings__Default
+        sync: false             # paste the Neon connection string when prompted

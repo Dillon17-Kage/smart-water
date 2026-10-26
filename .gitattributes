@@ -1,0 +1,5 @@
+# Consistent line endings between Windows and Render's Linux build
+* text=auto
+*.sh  text eol=lf
+Dockerfile text eol=lf
+*.sql text eol=lf
