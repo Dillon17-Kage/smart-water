@@ -1,7 +1,8 @@
 -- Smoke test: simulates 60 s of readings with a 0.8 L/min leak opening in
 -- Zone B at t = 30 s, with the whole rig loaded (002 + all db/rig scripts),
 -- then checks the mass-balance view finds it and that the constraints reject
--- bad data. There are no P1/P5 sensors, so only P2-P4 get readings. Runs in a transaction and rolls back.
+-- bad data. There are no trunk/return pressure sensors, so only P1-P3 get
+-- readings. Runs in a transaction and rolls back.
 \set ON_ERROR_STOP 1
 BEGIN;
 
@@ -17,30 +18,30 @@ SELECT id, 2.0, 2.0, 0.0, 80, 70, 300 FROM zones WHERE code = 'C';
 INSERT INTO readings (sensor_id, recorded_at, value)
 SELECT s.id, ts,
        CASE s.code
-         -- design document numbering: F1 trunk, F5 return, F2-F4 inlets, F6-F8 outlets
+         -- F1 trunk, F2/F3 Zone A, F4/F5 Zone B, F6/F7 Zone C, F8 return
          WHEN 'F1' THEN 6.0 + CASE WHEN t >= 30 THEN 0.8 ELSE 0 END
-         WHEN 'F5' THEN 6.0 - 0.05
+         WHEN 'F8' THEN 6.0 - 0.05
          WHEN 'F2' THEN 2.0
-         WHEN 'F6' THEN 1.95
-         WHEN 'F3' THEN 2.0 + CASE WHEN t >= 30 THEN 0.8 ELSE 0 END
+         WHEN 'F3' THEN 1.95
+         WHEN 'F4' THEN 2.0 + CASE WHEN t >= 30 THEN 0.8 ELSE 0 END
+         WHEN 'F5' THEN 2.0
+         WHEN 'F6' THEN 2.0
          WHEN 'F7' THEN 2.0
-         WHEN 'F4' THEN 2.0
-         WHEN 'F8' THEN 2.0
-         WHEN 'P2' THEN 80
-         WHEN 'P3' THEN 80 - CASE WHEN t >= 30 THEN 6 ELSE 0 END
-         WHEN 'P4' THEN 80
+         WHEN 'P1' THEN 80
+         WHEN 'P2' THEN 80 - CASE WHEN t >= 30 THEN 6 ELSE 0 END
+         WHEN 'P3' THEN 80
        END
 FROM generate_series(0, 59) t,
      LATERAL (SELECT timestamptz '2026-10-13 08:00:00+00' + t * interval '1 second') g(ts),
      sensors s;
 
-\echo '--- whole network: F1 - F5 before and after (expect 0.05 then 0.85)'
+\echo '--- whole network: F1 - F8 before and after (expect 0.05 then 0.85)'
 SELECT f1.recorded_at >= '2026-10-13 08:00:30+00' AS after_leak,
        round(avg(f1.value - f5.value)::numeric, 3) AS trunk_minus_return
 FROM readings f1
 JOIN sensors s1 ON s1.id = f1.sensor_id AND s1.code = 'F1'
 JOIN readings f5 ON f5.recorded_at = f1.recorded_at
-JOIN sensors s5 ON s5.id = f5.sensor_id AND s5.code = 'F5'
+JOIN sensors s5 ON s5.id = f5.sensor_id AND s5.code = 'F8'
 GROUP BY 1 ORDER BY 1;
 
 \echo '--- residual per zone, before (t<30) and after (t>=30): expect only B to jump to 0.800'

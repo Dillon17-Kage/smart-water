@@ -14,7 +14,7 @@ npm run dev          # http://localhost:5173
 ```
 
 It starts in **simulator mode**, so it works without the backend or the rig. The
-simulator copies the rig as it is now (Zone A only: F2, F6, P2, SV1 on node-2). Set
+simulator copies the rig as it is now (Zone A only: F2, F3, P1, SV1 on node-2). Set
 `VITE_SIM_STAGE` in `.env` to `two-zone` or `full` to preview the later builds.
 Sign in with any demo account (password `smartwater` for all):
 
@@ -86,9 +86,9 @@ JSON is camelCase; every type is in `src/types.ts` and maps one-to-one to the Po
 tables (`flow_offset` → `flowOffset`). Because the backend serves this app from the same
 address, no CORS setup is needed.
 
-Sensor numbering follows the design document: F1 trunk, F5 return, F2–F4 zone inlets,
-F6–F8 zone outlets, P1 trunk, P2–P4 zone inlets, P5 return. Pages find sensors by their
-`position`, not their code, so they work at every stage of the build. Until node-1 (F1/F5)
+Sensors are numbered along the water path: F1 trunk, F2/F3 Zone A in/out, F4/F5 Zone B,
+F6/F7 Zone C, F8 return, and P1–P3 at the zone inlets. Pages find sensors by their
+`position`, not their code, so they work at every stage of the build. Until node-1 (F1/F8)
 is fitted, supply and return are shown as the sum of the zone inlets and outlets.
 
 ## Project layout

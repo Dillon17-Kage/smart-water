@@ -157,7 +157,7 @@ while (true)
     {
         case 'l':
             node.LeakOpen = !node.LeakOpen;
-            Log(node.LeakOpen ? $"Drain cock OPENED: {node.LeakLpm:0.00} L/min leaving Zone A between F2 and F6" : "Drain cock shut");
+            Log(node.LeakOpen ? $"Drain cock OPENED: {node.LeakLpm:0.00} L/min leaving Zone A between F2 and F3" : "Drain cock shut");
             break;
         case '+' or '=':
             node.LeakLpm = Math.Min(0.6, node.LeakLpm + 0.05);
@@ -209,12 +209,13 @@ while (true)
     }
 }
 
-// Reads one key. When input is piped in (automated tests), reads one character per line.
+// Reads one key. When input is piped in (automated tests), reads one character
+// per line, and quits when the input ends.
 static char ReadKey()
 {
     if (!Console.IsInputRedirected) return char.ToLowerInvariant(Console.ReadKey(intercept: true).KeyChar);
     string? line = Console.ReadLine();
-    if (line is null) { Thread.Sleep(Timeout.Infinite); return ' '; }
+    if (line is null) return 'q';
     return line.Length > 0 ? char.ToLowerInvariant(line[0]) : ' ';
 }
 

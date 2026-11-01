@@ -39,7 +39,7 @@ export function NetworkPage() {
 
   const reading = (sensor?: Sensor) => (sensor && isFresh(live.latest[sensor.id], now) ? live.latest[sensor.id].value : null);
   const flowing = (sensor?: Sensor) => (reading(sensor) ?? 0) > 0.1;
-  // Until F1/F5 are fitted, show the trunk and return as flowing if any zone is.
+  // Until F1/F8 are fitted, show the trunk and return as flowing if any zone is.
   const activeZoneSensors = rig.zones.filter((z) => z.active).map((z) => zoneSensors(rig, z.id));
   const supplyFlowing = net.trunk ? flowing(net.trunk) : activeZoneSensors.some((z) => flowing(z.inlet));
   const returnFlowing = net.ret ? flowing(net.ret) : activeZoneSensors.some((z) => flowing(z.outlet));

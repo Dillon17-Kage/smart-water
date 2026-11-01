@@ -26,7 +26,7 @@ import * as rig from './rig';
  *   - the leaking zone's inlet pressure falls, other zones drop slightly
  *   - a closed zone valve stops all flow (and any leak) in that zone; the
  *     surplus goes to the other zones or the bypass
- *   - F1 (trunk) = sum of zone inlets, F5 (return) = sum of zone outlets
+ *   - F1 (trunk) = sum of zone inlets, F8 (return) = sum of zone outlets
  */
 
 const HISTORY_SECONDS = 15 * 60;

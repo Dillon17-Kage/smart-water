@@ -1,9 +1,9 @@
--- Adds node-1 at the tank: whole-network reconciliation (F1 vs F5).
+-- Adds node-1 at the tank: whole-network reconciliation (F1 vs F8).
 --   F1  trunk flow       GPIO 18
---   F5  return flow      GPIO 19
--- There are no trunk or return pressure sensors (P1, P5): the rig has only
--- the three zone inlet sensors P2-P4. The schema still allows them, so they
--- can be added later with the same INSERT as P2 and position 'trunk'/'return'.
+--   F8  return flow      GPIO 19
+-- There are no trunk or return pressure sensors: the rig has only the three
+-- zone inlet sensors P1-P3. The schema still allows them, so one can be added
+-- later with the same INSERT as P1, position 'trunk' or 'return' and code P4.
 -- Replace the placeholder MAC with WiFi.macAddress() from the board.
 
 BEGIN;
@@ -15,7 +15,7 @@ INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_f
 SELECT v.code, n.id, NULL, 'flow', v.position, 'L/min', v.pin, 98, 0, 10
 FROM (VALUES
     ('F1', 'trunk',  18),
-    ('F5', 'return', 19)
+    ('F8', 'return', 19)
 ) AS v(code, position, pin)
 JOIN nodes n ON n.name = 'node-1';
 

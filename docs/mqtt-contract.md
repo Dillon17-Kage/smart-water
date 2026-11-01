@@ -1,6 +1,6 @@
 # MQTT contract (node ↔ backend)
 
-**Version 1.0, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
+**Version 1.1, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
 (`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
 Both sides must match it exactly. It's written by the software session from §5.4 of
 `docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
@@ -38,7 +38,18 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
 - Payloads are UTF-8 JSON objects with **snake_case** keys, less than **1024 bytes**. A
   full three-zone node is about 600 bytes, so PubSubClient needs `setBufferSize(1024)`.
 - Times are ISO 8601 UTC with milliseconds and a `Z`, e.g. `2026-10-28T09:15:02.004Z`.
-- Sensor and valve codes are the database codes: `F2`, `F6`, `P2`, `SV1`, and so on.
+- Sensor and valve codes are the database codes, numbered in order along the water path:
+
+  | Where | Flow in | Flow out | Pressure | Valve | Node | GPIO (in / out / pressure / valve) |
+  |---|---|---|---|---|---|---|
+  | Trunk | `F1` | | | | node-1 | 18 |
+  | Zone A | `F2` | `F3` | `P1` | `SV1` | node-2 | 18 / 19 / 32 / 26 |
+  | Zone B | `F4` | `F5` | `P2` | `SV2` | node-2 | 16 / 17 / 33 / 25 |
+  | Zone C | `F6` | `F7` | `P3` | `SV3` | node-3 | 21 / 22 / 34 / 27 |
+  | Return | | `F8` | | | node-1 | 19 |
+
+  Today only Zone A exists. This **replaces the design document's numbering**
+  (F2/F6/P2 for Zone A) that the hardware brief still uses.
 - **The receiver ignores keys it doesn't know.** Fields can be added later without
   breaking the other side. Renaming or removing a field is a contract change.
 - Numbers are plain JSON numbers. Integers are sent without a decimal point.
@@ -53,10 +64,10 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
   "interval_ms": 1003,
   "flow": [
     {"sensor": "F2", "pulses": 66, "total": 512330},
-    {"sensor": "F6", "pulses": 65, "total": 509870}
+    {"sensor": "F3", "pulses": 65, "total": 509870}
   ],
   "pressure": [
-    {"sensor": "P2", "mv": 851}
+    {"sensor": "P1", "mv": 851}
   ],
   "valves": [
     {"valve": "SV1", "state": "open"}
@@ -188,3 +199,4 @@ broker some other way, e.g. from the HiveMQ web client.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 1 Nov 2026 | First version, from hardware brief §5.4 |
+| 1.1 | 1 Nov 2026 | Sensors renumbered along the water path: Zone A is now F2 (in), **F3** (out), **P1** (pressure). Message format unchanged |

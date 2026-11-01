@@ -33,7 +33,7 @@ About 10 minutes.
    ```sql
    SELECT code, gpio_pin, active FROM sensors ORDER BY code;
    ```
-   You should see **F2 18, F6 19, P2 32**, all `true`.
+   You should see **F2 18, F3 19, P1 32**, all `true`.
 
 ### 1.3 Make the `dev` branch
 A branch is a full copy of the database. You test on `dev` and present from `main`, so test

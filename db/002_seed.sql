@@ -3,8 +3,8 @@
 --
 -- Current build: Zone A only, on node-2.
 --   F2  Zone A inlet flow      GPIO 18
---   F6  Zone A outlet flow     GPIO 19
---   P2  Zone A inlet pressure  GPIO 32 (ADC1)
+--   F3  Zone A outlet flow     GPIO 19
+--   P1  Zone A inlet pressure  GPIO 32 (ADC1)
 --   SV1 Zone A solenoid        GPIO 26 (normally closed)
 -- These match the wiring in docs/hardware-brief.md section 3.
 --
@@ -14,9 +14,9 @@
 -- after confirming the pump is off (force: true in docs/mqtt-contract.md).
 --
 -- As the rig grows, run the scripts in db/rig/ (data only, no schema change):
---   rig/10_zone_b.sql        Zone B on node-2: F3, F7, P3, SV2
---   rig/20_zone_c.sql        Zone C on node-3: F4, F8, P4, SV3
---   rig/30_trunk_return.sql  node-1 at the tank: F1, F5 (no trunk/return pressure)
+--   rig/10_zone_b.sql        Zone B on node-2: F4, F5, P2, SV2
+--   rig/20_zone_c.sql        Zone C on node-3: F6, F7, P3, SV3
+--   rig/30_trunk_return.sql  node-1 at the tank: F1, F8 (no trunk/return pressure)
 --
 -- !! Check before connecting the real rig !!
 --   * node MAC addresses are placeholders: replace with WiFi.macAddress()
@@ -47,7 +47,7 @@ INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_f
 SELECT v.code, n.id, z.id, 'flow', v.position, 'L/min', v.pin, 98, 0, 10
 FROM (VALUES
     ('F2', 'node-2', 'A', 'zone_inlet',  18),
-    ('F6', 'node-2', 'A', 'zone_outlet', 19)
+    ('F3', 'node-2', 'A', 'zone_outlet', 19)
 ) AS v(code, node, zone, position, pin)
 JOIN nodes n ON n.name = v.node
 JOIN zones z ON z.code = v.zone;
@@ -55,7 +55,7 @@ JOIN zones z ON z.code = v.zone;
 -- Zone A inlet pressure (100 PSI transducer).
 -- If it isn't fitted yet, change active to false so it doesn't show as "no data".
 INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, cal_offset, cal_scale, min_valid, max_valid, active)
-SELECT 'P2', n.id, z.id, 'pressure', 'zone_inlet', 'kPa', 32, 0.5, 172.37, -20, 700, true
+SELECT 'P1', n.id, z.id, 'pressure', 'zone_inlet', 'kPa', 32, 0.5, 172.37, -20, 700, true
 FROM nodes n, zones z
 WHERE n.name = 'node-2' AND z.code = 'A';
 
@@ -73,7 +73,7 @@ INSERT INTO settings (key, value, description) VALUES
     ('detection.clear_period_s', '10',
      'Residual must stay below threshold this long before a leak is resolved'),
     ('detection.network_threshold_lpm', '0.4',
-     'Trunk (F1) minus return (F5) above this counts as network-level loss, L/min. Used once node-1 is fitted'),
+     'Trunk (F1) minus return (F8) above this counts as network-level loss, L/min. Used once node-1 is fitted'),
     ('health.heartbeat_timeout_s', '30',
      'Node marked offline after this long with no message'),
     ('valve.confirm_timeout_s', '5',

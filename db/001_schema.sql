@@ -2,9 +2,9 @@
 -- Smart Water: IoT water distribution monitoring and leak detection
 -- PostgreSQL 16+ schema (runs on Neon)
 --
--- Sensor and node numbering follows the approved design document:
---   F1 trunk, F5 return, F2-F4 zone inlets (A-C), F6-F8 zone outlets (A-C)
---   P1 trunk, P2-P4 zone inlets (A-C), P5 return
+-- Sensor numbers follow the water path (renumbered from the design document):
+--   F1 trunk, F2/F3 Zone A in/out, F4/F5 Zone B in/out, F6/F7 Zone C in/out, F8 return
+--   P1-P3 zone inlet pressure (A-C); there is no trunk or return pressure sensor
 --   node-1 at the tank, node-2 Zones A+B (SV1, SV2), node-3 Zone C (SV3)
 --
 -- Based on the ERD in the design document (Fig 8.3), updated for:

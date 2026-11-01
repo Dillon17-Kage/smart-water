@@ -1,16 +1,16 @@
 import type { Baseline, DetectionSettings, MonitoringNode, RoleName, Sensor, Valve, Zone } from '../../types';
 
 /**
- * The rig as seeded in db/002_seed.sql and the db/rig/ scripts, numbered as in
- * the design document:
- *   F1 trunk, F5 return, F2-F4 zone inlets (A-C), F6-F8 zone outlets (A-C)
- *   P1 trunk, P2-P4 zone inlets (A-C), P5 return
+ * The rig as seeded in db/002_seed.sql and the db/rig/ scripts. Numbers follow
+ * the water path:
+ *   F1 trunk, F2/F3 Zone A in/out, F4/F5 Zone B in/out, F6/F7 Zone C in/out, F8 return
+ *   P1-P3 zone inlet pressure (A-C); no trunk or return pressure sensor
  *   node-1 at the tank, node-2 Zones A+B (SV1, SV2), node-3 Zone C (SV3)
  *
  * VITE_SIM_STAGE picks how much of it exists, so the simulator matches the bench:
- *   zone-a    (default) Zone A only: F2, F6, P2, SV1 on node-2, bypass protects the pump
- *   two-zone  + Zone B: F3, F7, P3, SV2 on node-2
- *   full      + Zone C on node-3, + node-1 with F1, F5, P1, P5; valve interlock on
+ *   zone-a    (default) Zone A only: F2, F3, P1, SV1 on node-2, bypass protects the pump
+ *   two-zone  + Zone B: F4, F5, P2, SV2 on node-2
+ *   full      + Zone C on node-3, + node-1 with F1, F8; valve interlock on
  */
 export type RigStage = 'zone-a' | 'two-zone' | 'full';
 
@@ -44,17 +44,15 @@ const pressure = (id: number, code: string, nodeId: number, zoneId: number | nul
 const allSensors: SensorDef[] = [
   flow(1, 'F1', 1, null, 'trunk', 'full'),
   flow(2, 'F2', 2, 1, 'zone_inlet', 'zone-a'),
-  flow(3, 'F3', 2, 2, 'zone_inlet', 'two-zone'),
-  flow(4, 'F4', 3, 3, 'zone_inlet', 'full'),
-  flow(5, 'F5', 1, null, 'return', 'full'),
-  flow(6, 'F6', 2, 1, 'zone_outlet', 'zone-a'),
-  flow(7, 'F7', 2, 2, 'zone_outlet', 'two-zone'),
-  flow(8, 'F8', 3, 3, 'zone_outlet', 'full'),
-  pressure(9, 'P1', 1, null, 'trunk', 'full'),
-  pressure(10, 'P2', 2, 1, 'zone_inlet', 'zone-a'),
-  pressure(11, 'P3', 2, 2, 'zone_inlet', 'two-zone'),
-  pressure(12, 'P4', 3, 3, 'zone_inlet', 'full'),
-  pressure(13, 'P5', 1, null, 'return', 'full'),
+  flow(3, 'F4', 2, 2, 'zone_inlet', 'two-zone'),
+  flow(4, 'F6', 3, 3, 'zone_inlet', 'full'),
+  flow(5, 'F8', 1, null, 'return', 'full'),
+  flow(6, 'F3', 2, 1, 'zone_outlet', 'zone-a'),
+  flow(7, 'F5', 2, 2, 'zone_outlet', 'two-zone'),
+  flow(8, 'F7', 3, 3, 'zone_outlet', 'full'),
+  pressure(10, 'P1', 2, 1, 'zone_inlet', 'zone-a'),
+  pressure(11, 'P2', 2, 2, 'zone_inlet', 'two-zone'),
+  pressure(12, 'P3', 3, 3, 'zone_inlet', 'full'),
 ];
 export const sensors: Sensor[] = allSensors.filter((s) => builtBy(s.stage)).map(({ stage: _s, ...s }) => s);
 

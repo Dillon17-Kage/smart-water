@@ -1,4 +1,4 @@
-// A pretend node-2 with Zone A: F2 (inlet flow), F6 (outlet flow), P2 (inlet
+// A pretend node-2 with Zone A: F2 (inlet flow), F3 (outlet flow), P1 (inlet
 // pressure) and SV1 (normally closed solenoid). It behaves like the firmware
 // described in docs/mqtt-contract.md, but makes up the water physics.
 //
@@ -15,13 +15,13 @@ public class SimulatedNode
     const double PressureScaleKpaPerV = 172.37; // ...and 172.37 kPa per volt above that
     const double NormalFlowLpm = 0.65;      // Zone A runs at about 0.6-0.7 L/min
     const double NormalPressureKpa = 60;
-    const double OutletSensorError = 0.015; // F6 reads 1.5 % low, like two cheap sensors that never agree exactly
+    const double OutletSensorError = 0.015; // F3 reads 1.5 % low, like two cheap sensors that never agree exactly
     const string Firmware = "sim-1.0.0";
 
     public string Name { get; }
     public string FlowIn { get; } = "F2";
-    public string FlowOut { get; } = "F6";
-    public string PressureIn { get; } = "P2";
+    public string FlowOut { get; } = "F3";
+    public string PressureIn { get; } = "P1";
     public string Valve { get; } = "SV1";
 
     // ---- What the keyboard controls ------------------------------------------
@@ -52,12 +52,12 @@ public class SimulatedNode
     /// <summary>The true flows and pressure right now, before the sensors measure them.</summary>
     public (double InLpm, double OutLpm, double Kpa) TrueValues()
     {
-        // Pump off, or SV1 closed upstream of everything: no flow, no pressure at P2.
+        // Pump off, or SV1 closed upstream of everything: no flow, no pressure at P1.
         if (!PumpOn || !ValveOpen) return (0, 0, 0);
 
         double leak = LeakOpen ? LeakLpm : 0;
         // An open drain cock lowers the resistance, so a little more water comes in,
-        // but the leak itself never reaches F6.
+        // but the leak itself never reaches F3.
         double inlet = NormalFlowLpm + 0.3 * leak;
         double outlet = inlet - leak;
         double kpa = NormalPressureKpa - 10 * leak;
@@ -70,7 +70,7 @@ public class SimulatedNode
         var (inLpm, outLpm, kpa) = TrueValues();
         double seconds = intervalMs / 1000.0;
 
-        // Sensor noise of about ±1 %, plus F6's steady error.
+        // Sensor noise of about ±1 %, plus F3's steady error.
         inLpm *= 1 + Noise(0.01);
         outLpm *= (1 - OutletSensorError) * (1 + Noise(0.01));
 
@@ -170,7 +170,7 @@ public class SimulatedNode
     public string Describe()
     {
         var (inLpm, outLpm, kpa) = TrueValues();
-        return $"F2 {inLpm:0.00} L/min | F6 {outLpm:0.00} L/min | P2 {kpa:0} kPa | {Valve} {ValveState} | " +
+        return $"F2 {inLpm:0.00} L/min | F3 {outLpm:0.00} L/min | P1 {kpa:0} kPa | {Valve} {ValveState} | " +
                $"pump {(PumpOn ? "on" : "OFF")} | leak {(LeakOpen ? $"OPEN {LeakLpm:0.00} L/min" : $"shut (set {LeakLpm:0.00})")}" +
                (ValveFault ? " | VALVE FAULT" : "") + (SendTimestamps ? "" : " | no NTP");
     }

@@ -26,14 +26,14 @@ export function zoneSensors(rig: Rig, zoneId: number): ZoneSensors {
 export function networkSensors(rig: Rig) {
   return {
     trunk: rig.sensors.find((s) => s.type === 'flow' && s.position === 'trunk'), // F1
-    ret: rig.sensors.find((s) => s.type === 'flow' && s.position === 'return'), // F5
-    pressure: rig.sensors.find((s) => s.type === 'pressure' && s.position === 'trunk'), // P1
-    returnPressure: rig.sensors.find((s) => s.type === 'pressure' && s.position === 'return'), // P5
+    ret: rig.sensors.find((s) => s.type === 'flow' && s.position === 'return'), // F8
+    pressure: rig.sensors.find((s) => s.type === 'pressure' && s.position === 'trunk'), // none on the rig yet
+    returnPressure: rig.sensors.find((s) => s.type === 'pressure' && s.position === 'return'), // none on the rig yet
   };
 }
 
 /**
- * Network supply and return. Uses F1 and F5 when node-1 is fitted; until then
+ * Network supply and return. Uses F1 and F8 when node-1 is fitted; until then
  * they are the sum of the zone inlets and outlets, which is the same water.
  */
 export function networkFlows(rig: Rig, values: Record<number, number | undefined>) {

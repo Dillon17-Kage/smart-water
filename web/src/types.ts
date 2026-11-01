@@ -35,7 +35,7 @@ export type SensorPosition = 'trunk' | 'return' | 'zone_inlet' | 'zone_outlet';
 
 export interface Sensor {
   id: number;
-  code: string; // F1 trunk, F5 return, F2-F4 inlets, F6-F8 outlets, P1-P5
+  code: string; // F1 trunk, F2/F3 Zone A in/out, F4/F5 B, F6/F7 C, F8 return; P1-P3 zone inlets
   nodeId: number;
   zoneId: number | null; // null for trunk / return
   type: SensorType;

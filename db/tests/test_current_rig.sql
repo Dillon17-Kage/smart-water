@@ -12,8 +12,8 @@ INSERT INTO readings (sensor_id, recorded_at, value)
 SELECT s.id, timestamptz '2026-10-22 08:00:00+00' + t * interval '1 second',
        CASE s.code
          WHEN 'F2' THEN 0.70 + CASE WHEN t >= 30 THEN 0.10 ELSE 0 END   -- leaking zone draws a little more
-         WHEN 'F6' THEN 0.67 + CASE WHEN t >= 30 THEN 0.10 - 0.40 ELSE 0 END  -- 0.4 L/min leaves via the drain cock
-         WHEN 'P2' THEN 60 - CASE WHEN t >= 30 THEN 8 ELSE 0 END
+         WHEN 'F3' THEN 0.67 + CASE WHEN t >= 30 THEN 0.10 - 0.40 ELSE 0 END  -- 0.4 L/min leaves via the drain cock
+         WHEN 'P1' THEN 60 - CASE WHEN t >= 30 THEN 8 ELSE 0 END
        END
 FROM generate_series(0, 59) t, sensors s;
 

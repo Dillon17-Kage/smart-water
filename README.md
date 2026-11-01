@@ -40,14 +40,16 @@ Use a phone hotspot for the ESP32 at the venue; campus Wi-Fi login pages block i
 | Item | Code | Node | GPIO |
 |---|---|---|---|
 | Zone A inlet flow (YF-S401) | F2 | node-2 | 18 |
-| Zone A outlet flow (YF-S401) | F6 | node-2 | 19 |
-| Zone A inlet pressure (100 PSI) | P2 | node-2 | 32 |
+| Zone A outlet flow (YF-S401) | F3 | node-2 | 19 |
+| Zone A inlet pressure (100 PSI) | P1 | node-2 | 32 |
 | Zone A solenoid (normally closed) | SV1 | node-2 | 26 |
 
 There is no bypass, so **switch the pump off before closing SV1** (the last open valve).
 The web app asks the operator to confirm this before it sends the close.
 
-Numbering follows the design document. Adding Zone B (F3, F7, P3, SV2 on node-2), Zone C
+Sensors are numbered in order along the water path: F1 trunk, then each zone's inlet and
+outlet (A: F2/F3, B: F4/F5, C: F6/F7), then F8 return; P1–P3 are the zone inlet pressures.
+This replaces the design document's numbering. Adding Zone B (F4, F5, P2, SV2 on node-2), Zone C
 (node-3) and the trunk/return flow sensors (node-1) is a data change: run the matching script
 in `db/rig/`. See `db/README.md`.
 
@@ -113,7 +115,7 @@ and Render's environment settings. Keep the GitHub repo private.
 
 | Phase | What | Status |
 |---|---|---|
-| 0 | Repo, database and web app on the design document's numbering, Render setup | Done |
+| 0 | Repo, database and web app on the design document's sensor numbering, Render setup | Done |
 | 1 | Node firmware: pulse counting, pressure, valve, Wi-Fi + MQTT, heartbeat, commands | Next |
 | 2 | Rig tests: leak check, sensor-pair calibration, jug test | |
 | 3 | Backend: ingestion, heartbeat monitor, detection, alerts, valve control, API, SignalR | |
