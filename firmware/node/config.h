@@ -14,6 +14,13 @@
 enum FlowRole  { FLOW_IN, FLOW_OUT };
 enum ValveType { NORMALLY_CLOSED, NORMALLY_OPEN };
 
+// Which GPIO level powers the solenoid coil.
+//   HIGH_ENERGISES: logic-level MOSFET, or a relay module with the coil on its NO contact.
+//   LOW_ENERGISES:  relay module (on when its input is HIGH) with the coil on its NC
+//                   contact: the coil is powered while the relay is off, so the valve
+//                   stays open if the ESP32 resets or loses power.
+enum ValveDriver { HIGH_ENERGISES, LOW_ENERGISES };
+
 struct FlowSensorConfig {
   const char *code;  // e.g. "F2"
   int pin;
@@ -28,8 +35,9 @@ struct PressureSensorConfig {
 
 struct ValveConfig {
   const char *code;  // e.g. "SV1"
-  int pin;           // GPIO HIGH = coil energised
-  ValveType type;    // NC: energised = open. NO: energised = closed
+  int pin;
+  ValveType type;      // NC: energised = open. NO: energised = closed
+  ValveDriver driver;  // which GPIO level powers the coil
 };
 
 // node-2, Zone A. Zone B rows are ready to uncomment when its sensors arrive.
@@ -47,8 +55,8 @@ const PressureSensorConfig PRESSURE_SENSORS[] = {
 
 // A node with no valves (node-1) leaves this list empty: {}
 const ValveConfig VALVES[] = {
-  {"SV1", 26, NORMALLY_CLOSED},
-  // {"SV2", 25, NORMALLY_CLOSED},
+  {"SV1", 26, NORMALLY_CLOSED, LOW_ENERGISES},  // relay module CH1, coil on NC contact
+  // {"SV2", 25, NORMALLY_CLOSED, LOW_ENERGISES},  // relay CH2
 };
 
 const int FLOW_COUNT     = sizeof(FLOW_SENSORS) / sizeof(FLOW_SENSORS[0]);

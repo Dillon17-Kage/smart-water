@@ -13,7 +13,7 @@ manual. Anything not listed under "Tested" has **not** been tested.
 | F2 flow sensor (inlet, GPIO18) | Wired and working (air test) |
 | F3 flow sensor (outlet, GPIO19) | Wired and working (air test) |
 | P1 pressure sensor (GPIO32) | Wired and working; zero is 0.38 V, not 0.5 V |
-| SV1 solenoid valve driver (GPIO26) | **Not working**: wrong MOSFET fitted (IRFZ44N instead of IRLZ44N) |
+| SV1 solenoid valve driver (GPIO26) | MOSFET driver failed (IRFZ44N fitted instead of IRLZ44N). **Replaced by a relay module**; firmware updated; valve switching test pending |
 | Build step 2: node firmware without network (`node/node.ino`) | Written and compiles; **not yet flashed or tested on the board** |
 | Build steps 3–5: Wi-Fi, MQTT (EMQX Serverless), commands and acks | Not started |
 | Water tests (leak check, pressure zero, flow-pair calibration, jug test) | Not done: piping not connected yet |
@@ -26,7 +26,7 @@ manual. Anything not listed under "Tested" has **not** been tested.
 | Flow sensors | 2 × YF-S401 (F2 inlet, F3 outlet). Design value 5880 pulses/L (98 Hz per L/min) |
 | Pressure sensor | 0–100 PSI (0–689.5 kPa), 0.5–4.5 V output, 5 V supply |
 | Valve | SV1, 12 V solenoid, normally closed (NC). Works when 12 V is applied directly |
-| Valve driver | **IRFZ44N** (the design calls for an **IRLZ44N**, see section 5.1) |
+| Valve driver | First an **IRFZ44N** MOSFET (the design calls for an **IRLZ44N**; failed, see 4.3). Now a **YS-4Relay V3.10** 4-channel relay module (SRD-05VDC-SL-C relays, 10 A / 30 V DC contacts, optocoupler inputs), channel 1 |
 | Power during tests | Sensors and ESP32 powered from laptop USB (ESP32 VIN pin, about 4.7–4.9 V). 12 V PSU only for the solenoid. The LM2596 buck converter was left out for this step |
 
 ### Change from the original schematic: E12 resistor values
@@ -52,7 +52,9 @@ resistor values (`DIVIDER_R_TOP`, `DIVIDER_R_BOTTOM`). The updated schematic is
 | Inlet flow | F2 | GPIO18 | yellow → 12k → pin; 22k pin → GND |
 | Outlet flow | F3 | GPIO19 | yellow → 12k → pin; 22k pin → GND |
 | Inlet pressure | P1 | GPIO32 (ADC1) | signal → 12k → pin; 22k and 100 nF pin → GND |
-| Solenoid | SV1 | GPIO26 | GPIO26 → 220 Ω → MOSFET gate; 10k gate → GND; MOSFET source → PSU V− |
+| Solenoid | SV1 | GPIO26 | GPIO26 → relay module CH1. Module VCC → 5 V, GND and RGND → GND. +12 V → relay COM; relay **NC** → solenoid → PSU V−; 1N4007 across the solenoid. PSU V− joined to ESP32 GND |
+
+The schematic image still shows the original MOSFET driver for SV1.
 
 Sensor codes follow `docs/mqtt-contract.md` v1.1 (Zone A = F2, F3, P1, SV1). The hardware
 brief still uses the older names (F6, P2).
@@ -113,11 +115,32 @@ Until then, the kPa shown on the Serial Monitor reads negative at rest.
 closed), but the fitted IRFZ44N cannot be switched by a 3.3 V output, so the valve can't
 be controlled. No NPN transistor was available for a level shifter.
 
+### 4.4 Relay module replacing the MOSFET
+
+| Test (module VCC → 5 V, GND and RGND → GND, no solenoid) | Result |
+|---|---|
+| CH1 to 3.3 V | Relay 1 switches on ✅ |
+| CH1 to GND | Relay 1 switches off ✅ |
+
+So the module is **active-HIGH** and works directly from a 3.3 V ESP32 output. The
+solenoid is wired to the relay's **NC** contact:
+
+| GPIO26 | Relay | Solenoid | Valve |
+|---|---|---|---|
+| LOW (also the boot state) | off | powered | **open** |
+| HIGH | on | off | **closed** |
+
+This is fail-safe: if the ESP32 resets, crashes or loses power, the relay drops out and
+the valve stays open, so the pump can't dead-head. The firmware setting for this is
+`LOW_ENERGISES` in `config.h` (`SV1_LOW_ENERGISES` in the bring-up sketch).
+Switching the actual solenoid through the relay is **not yet tested**.
+
 ## 5. Open problems and how to fix them
 
-### 5.1 Valve driver (blocking)
+### 5.1 Valve driver
 
-Any of these fixes it; only the first needs no firmware change:
+**Chosen fix: relay module (option 2 below), see 4.4.** The other options are kept for
+the report's discussion. Any of these fixes it; only the first needs no firmware change:
 
 1. **Replace the IRFZ44N with an IRLZ44N** (same pinout and wiring, G · D · S).
 2. **5 V relay module** (relay on a small board with IN / VCC / GND pins; it contains its
@@ -135,7 +158,7 @@ Any of these fixes it; only the first needs no firmware change:
   so a wiring short has no protection. Must be fitted before the pump runs.
 - **1N4007 flyback diode** across the solenoid: orientation (stripe to +12 V) still to be
   confirmed.
-- **Until SV1 works, the valve stays closed** (NC, not energised). The pump must not be
+- **If SV1's coil has no power, the valve is closed** (NC). The pump must not be
   run with SV1 in the water path, or it dead-heads (pressure builds until the pump's
   pressure switch trips; hose joints can blow off). Either leave SV1 out of the loop
   (tube straight through) or power it directly from 12 V so it stays open.

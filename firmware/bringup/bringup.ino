@@ -13,10 +13,15 @@
 const int PIN_F2  = 18;  // flow IN  (yellow wire, through the 12k/22k divider)
 const int PIN_F3  = 19;  // flow OUT (yellow wire, through the 12k/22k divider)
 const int PIN_P1  = 32;  // pressure (ADC1, so it keeps working once Wi-Fi is added)
-const int PIN_SV1 = 26;  // MOSFET gate: HIGH = coil energised
+const int PIN_SV1 = 26;  // relay module CH1 (relay switches on when CH1 is HIGH)
 
 // ---------------------------------------------------------------- settings
 const bool SV1_NORMALLY_CLOSED = true;   // NC valve: coil energised = open
+
+// The solenoid is wired to the relay's NC contact, so the coil is powered while the
+// relay is OFF (GPIO LOW). That way the valve stays open if the ESP32 resets or dies.
+// Set to false for a driver where GPIO HIGH powers the coil (MOSFET, or relay NO contact).
+const bool SV1_LOW_ENERGISES = true;
 
 const float PULSES_PER_LPM = 98.0;       // YF-S401: 5880 pulses/L = 98 Hz per L/min
 const uint32_t MIN_PULSE_GAP_US = 1000;  // pulses closer than 1 ms are noise (real max ~600 Hz)
@@ -71,7 +76,8 @@ bool sv1Open = false;
 void setSV1(bool open) {
   // NC valve opens when energised; an NO valve would be the other way round.
   bool energise = SV1_NORMALLY_CLOSED ? open : !open;
-  digitalWrite(PIN_SV1, energise ? HIGH : LOW);
+  bool pinHigh = SV1_LOW_ENERGISES ? !energise : energise;
+  digitalWrite(PIN_SV1, pinHigh ? HIGH : LOW);
   sv1Open = open;
 }
 

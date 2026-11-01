@@ -55,4 +55,8 @@ SV1 (solenoid, GPIO26). The hardware brief still uses the old names F6 and P2.
   never leaves the water path closed.
 - SV1 is **normally closed**: the coil is energised (and gets warm) the whole time the
   valve is open. That's expected.
+- SV1 is switched by a **relay module** (YS-4Relay, on when CH1 is HIGH) with the
+  solenoid on the relay's **NC** contact. GPIO26 LOW = relay off = coil powered = valve
+  open; GPIO26 HIGH = valve closed. If the ESP32 resets or loses power the valve stays
+  open. The driver type is the `ValveDriver` column in `config.h`.
 - The node never changes a valve because Wi-Fi, the broker or the backend went away.

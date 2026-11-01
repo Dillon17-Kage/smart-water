@@ -121,7 +121,8 @@ bool valveOpen[VALVE_COUNT];
 void driveValve(int v, bool open) {
   // NC valve opens when energised; NO valve closes when energised.
   bool energise = (VALVES[v].type == NORMALLY_CLOSED) ? open : !open;
-  digitalWrite(VALVES[v].pin, energise ? HIGH : LOW);
+  bool pinHigh = (VALVES[v].driver == HIGH_ENERGISES) ? energise : !energise;
+  digitalWrite(VALVES[v].pin, pinHigh ? HIGH : LOW);
   valveOpen[v] = open;
 }
 
