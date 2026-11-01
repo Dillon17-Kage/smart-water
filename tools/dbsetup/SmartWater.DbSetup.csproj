@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+  <!-- Same helpers as the backend, so both read Neon's settings the same way -->
+  <ItemGroup>
+    <Compile Include="..\..\backend\src\SmartWater.Api\Database\DatabaseUrl.cs" Link="DatabaseUrl.cs" />
+    <Compile Include="..\..\backend\src\SmartWater.Api\Database\EnvFile.cs" Link="EnvFile.cs" />
+  </ItemGroup>
+
+</Project>

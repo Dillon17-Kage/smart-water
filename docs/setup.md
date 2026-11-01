@@ -11,55 +11,51 @@ only ever go into `dotnet user-secrets` on your PC, Render's environment setting
 
 ## 1. Neon (PostgreSQL database)
 
-About 10 minutes.
+**Done on 1 Nov 2026.** Project `smart-water` (`weathered-smoke-12212274`), region
+**aws-eu-central-1 (Frankfurt)**, Postgres 18. The schema and seed are loaded on the
+`production` branch.
 
-### 1.1 Create the project
-1. Go to **https://neon.tech** → **Sign up** (GitHub login is easiest).
-2. If it asks you to create a project (or click **New project**):
-   - **Project name:** `smart-water`
-   - **Postgres version:** leave the default
-   - **Region:** **AWS Europe Central 1 (Frankfurt)**. This must match Render's region,
-     or every query crosses Europe.
-   - Click **Create project**.
+How it's wired, so you can explain it:
 
-### 1.2 Load the schema and the seed
-1. In the left menu click **SQL Editor**. Check the branch drop-down at the top says
-   **main** and the database says **neondb**.
-2. Open `db/001_schema.sql` from the repo in VS Code, **Ctrl+A**, **Ctrl+C**.
-3. In the SQL Editor, select whatever is there, **Ctrl+V**, then click **Run**.
-   It should finish with no red error.
-4. Same again with `db/002_seed.sql`.
-5. Check: clear the editor, paste this and **Run**:
-   ```sql
-   SELECT code, gpio_pin, active FROM sensors ORDER BY code;
-   ```
-   You should see **F2 18, F3 19, P1 32**, all `true`.
+- `neon.ts` (repo root) is the project's Neon config. `neon deploy` applies it and writes
+  the connection strings into **`.env.local`**, which Git ignores:
+  - `DATABASE_URL`: the **pooled** connection (`-pooler` host). The backend uses it,
+    because a web server makes many short queries.
+  - `DATABASE_URL_UNPOOLED`: the **direct** connection. `tools/dbsetup` uses it for schema
+    changes, as Neon recommends.
+- Locally the backend reads `DATABASE_URL` from `.env.local`; on Render it's an
+  environment variable. `backend/.../Database/DatabaseUrl.cs` turns Neon's
+  `postgresql://` URL into the format Npgsql (the .NET driver) expects.
 
-### 1.3 Make the `dev` branch
-A branch is a full copy of the database. You test on `dev` and present from `main`, so test
-data never gets into the demo.
-1. Left menu → **Branches** → **New branch** (or **Create branch**).
-2. **Name:** `dev`, **Parent:** `main`, from the latest data (the default). → **Create**.
+### Redo it on another PC
 
-### 1.4 Give the backend the connection string
-1. Go to the project **Dashboard** and click **Connect** (top right).
-2. In the dialog set:
-   - **Branch:** `dev`
-   - **Connection pooling:** **on**
-   - The language / format drop-down: **.NET**
-3. Click **Show password**, then **Copy**. You now have a string that starts with
-   `Host=ep-…-pooler.eu-central-1.aws.neon.tech;Database=neondb;Username=…`.
-4. Open PowerShell in the repo and paste it **between the single quotes**:
-   ```powershell
-   cd backend\src\SmartWater.Api
-   dotnet user-secrets set 'ConnectionStrings:Default' '<paste here>'
-   ```
-5. Check it works:
-   ```powershell
-   dotnet run
-   ```
-   Open http://localhost:5000/api/health. You should see
-   `"database":"ok"` and `"rig":"1 active zone(s), 3 sensor(s)"`. **Ctrl+C** stops it.
+```powershell
+npx neon@latest login          # opens the browser to sign in
+npx neon@latest env pull       # writes .env.local for the linked branch
+cd backend\src\SmartWater.Api
+dotnet run                     # http://localhost:5000/api/health -> "database":"ok"
+```
+
+### Load or reset the database
+
+```powershell
+cd tools\dbsetup
+dotnet run                                                   # shows what's in it
+dotnet run -- ..\..\db_schema.sql ..\..\db_seed.sql      # empty database only
+dotnet run -- ..\..\db	oolseset_demo_data.sql                 # before a presentation
+```
+
+### A `dev` branch for testing
+
+Test on a branch so test data never reaches the demo database:
+
+```powershell
+npx neon@latest checkout dev --create   # copy of production, .env.local now points at it
+npx neon@latest checkout production     # back to production before presenting
+```
+
+`neon.ts` makes new branches **expire after 7 days** (`ttl: "7d"`). That's fine for
+throw-away test branches. For a long-lived `dev`, remove the `ttl` line first.
 
 ---
 
@@ -148,7 +144,7 @@ Do this after the backend works locally. The walkthrough comes when the work rea
 3. It asks for the secret settings. Paste:
    | Key | Value |
    |---|---|
-   | `ConnectionStrings__Default` | Neon connection string for the **main** branch (pooled, .NET format) |
+   | `DATABASE_URL` | `DATABASE_URL` from `.env.local` (pooled, production branch), pasted as it is |
    | `Mqtt__Host` | HiveMQ cluster URL |
    | `Mqtt__Username` | `backend` |
    | `Mqtt__Password` | backend password |

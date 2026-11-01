@@ -12,5 +12,5 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true            # every push to GitHub redeploys
     envVars:
-      - key: ConnectionStrings__Default
-        sync: false             # paste the Neon connection string when prompted
+      - key: DATABASE_URL
+        sync: false             # paste DATABASE_URL from .env.local (Neon, pooled) when prompted

@@ -13,7 +13,6 @@ the API endpoints the web app expects (listed in `web/README.md`) and the Signal
 
 ```powershell
 cd ..\web; npm run build; cd ..\backend\src\SmartWater.Api
-dotnet user-secrets set "ConnectionStrings:Default" "<Neon connection string>"
 dotnet run        # http://localhost:5000
 ```
 
@@ -23,5 +22,5 @@ Without a connection string it still runs and `/api/health` reports `"database":
 
 | Setting | Locally | On Render |
 |---|---|---|
-| Neon connection string | `dotnet user-secrets set "ConnectionStrings:Default" "..."` | Env var `ConnectionStrings__Default` |
+| Neon connection string | `DATABASE_URL` in `.env.local` at the repo root, written by `neon deploy` / `neon env pull` (Git ignores it) | Env var `DATABASE_URL` |
 | Port | 5000 (launchSettings.json) | Render's `PORT` |

@@ -80,7 +80,6 @@ npm run dev                  # http://localhost:5173
 cd web
 npm run build
 cd ..\backend\src\SmartWater.Api
-dotnet user-secrets set "ConnectionStrings:Default" "<Neon connection string>"
 dotnet run                   # http://localhost:5000, health check at /api/health
 ```
 
@@ -89,9 +88,9 @@ it found. That is the first thing to check after setting up Neon or deploying.
 
 ## Setting up the cloud services
 
-**Neon** (database): create a project in the Frankfurt region, run `db/001_schema.sql`
-then `db/002_seed.sql` in its SQL Editor, and create a `dev` branch for testing. Copy the
-pooled connection string. Details in `db/README.md`.
+**Neon** (database): done. Project `smart-water` in Frankfurt, linked with `neon.ts`;
+`neon deploy` / `neon env pull` writes the connection strings into `.env.local` (Git ignores
+it) and the backend reads them from there. Details in `docs/setup.md` section 1.
 
 **HiveMQ Cloud** (MQTT): create a free Serverless cluster and an access credential.
 Needed from Phase 1. The host, username and password go in `firmware/node/secrets.h`
@@ -101,14 +100,14 @@ and in Render's environment settings, never in Git.
 
 1. Push this repo to GitHub (private).
 2. In Render: **New → Blueprint**, pick the repo. Render reads `render.yaml`.
-3. When asked, paste the Neon connection string for `ConnectionStrings__Default`.
+3. When asked, paste `DATABASE_URL` from `.env.local` (Neon's pooled connection string).
 4. Deploy. Open `https://<your-service>.onrender.com/api/health` and check
    `"database": "ok"`. Every push to GitHub redeploys.
 
 ## Keeping secrets out of Git
 
 Never commit: the Wi-Fi password, the HiveMQ login or the Neon connection string. They
-live in `firmware/node/secrets.h` (ignored by Git), `dotnet user-secrets` on your PC,
+live in `firmware/node/secrets.h` and `.env.local` (both ignored by Git), `dotnet user-secrets` on your PC,
 and Render's environment settings. Keep the GitHub repo private.
 
 ## Build plan

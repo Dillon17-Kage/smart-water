@@ -6,6 +6,7 @@
 
 using Microsoft.Extensions.FileProviders;
 using Npgsql;
+using SmartWater.Api.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,12 +18,26 @@ if (!string.IsNullOrEmpty(port))
 }
 
 // The Neon connection string comes from the environment, never from Git:
-//   locally:  dotnet user-secrets set "ConnectionStrings:Default" "<Neon connection string>"
-//   Render:   environment variable ConnectionStrings__Default
-var connectionString = builder.Configuration.GetConnectionString("Default");
+//   locally:  `neon deploy` / `neon env pull` write DATABASE_URL into .env.local
+//             at the repo root (Git ignores it), and we read it from there
+//   Render:   environment variable DATABASE_URL
+// The app uses the pooled connection (DATABASE_URL): many short queries from a
+// long-running server. Schema changes use DATABASE_URL_UNPOOLED (tools/dbsetup).
+// ConnectionStrings:Default (user-secrets) still works and wins if set.
+if (builder.Environment.IsDevelopment()
+    && EnvFile.Find(builder.Environment.ContentRootPath, ".env.local") is { } envFile)
+{
+    // Real environment variables and user-secrets keep priority over the file.
+    var fromFile = EnvFile.Read(envFile)
+        .Where(pair => builder.Configuration[pair.Key] is null)
+        .Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value));
+    builder.Configuration.AddInMemoryCollection(fromFile);
+}
+
+var connectionString = builder.Configuration.GetConnectionString("Default") ?? builder.Configuration["DATABASE_URL"];
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+    builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(DatabaseUrl.ToNpgsql(connectionString)));
 }
 
 var app = builder.Build();
