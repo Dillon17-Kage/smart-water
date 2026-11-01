@@ -1,0 +1,190 @@
+# MQTT contract (node ↔ backend)
+
+**Version 1.0, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
+(`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
+Both sides must match it exactly. It's written by the software session from §5.4 of
+`docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
+
+## 1. Connection
+
+| Item | Value |
+|---|---|
+| Broker | HiveMQ Cloud Serverless, TLS on port **8883**, username + password |
+| Node client id | `sw-node-2` (the `nodes.mqtt_client_id` column) |
+| Backend client id | `sw-backend-` + a random suffix |
+| Keep-alive | **15 s**. The broker publishes the last will about 1.5 × keep-alive after the node disappears |
+| Clean session | `true`. The node subscribes to its `cmd` topic again **after every connect** |
+| Last will (LWT) | topic `smartwater/{node}/status`, payload `{"node":"node-2","state":"offline"}`, QoS 1, **retained** |
+
+`{node}` is the node name from the database, e.g. `node-2`. All topics are lower case.
+
+Only one client may use a client id at a time. The simulator also connects as
+`sw-node-2`, so **run the simulator or the real node, never both.**
+
+## 2. Topics
+
+| Topic | Direction | QoS | Retained | When |
+|---|---|---|---|---|
+| `smartwater/{node}/readings` | node → backend | 1 (0 accepted) | no | every second |
+| `smartwater/{node}/status` | node → backend | 1 | **yes** | on connect, then every 10 s; the LWT on disconnect |
+| `smartwater/{node}/cmd` | backend → node | 1 | **never** | when an operator operates a valve |
+| `smartwater/{node}/ack` | node → backend | 1 | no | once for every `cmd` received |
+
+The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
+`smartwater/+/ack`.
+
+## 3. General rules
+
+- Payloads are UTF-8 JSON objects with **snake_case** keys, less than **1024 bytes**. A
+  full three-zone node is about 600 bytes, so PubSubClient needs `setBufferSize(1024)`.
+- Times are ISO 8601 UTC with milliseconds and a `Z`, e.g. `2026-10-28T09:15:02.004Z`.
+- Sensor and valve codes are the database codes: `F2`, `F6`, `P2`, `SV1`, and so on.
+- **The receiver ignores keys it doesn't know.** Fields can be added later without
+  breaking the other side. Renaming or removing a field is a contract change.
+- Numbers are plain JSON numbers. Integers are sent without a decimal point.
+
+## 4. `readings`: once per second
+
+```json
+{
+  "node": "node-2",
+  "seq": 1842,
+  "ts": "2026-10-28T09:15:02.004Z",
+  "interval_ms": 1003,
+  "flow": [
+    {"sensor": "F2", "pulses": 66, "total": 512330},
+    {"sensor": "F6", "pulses": 65, "total": 509870}
+  ],
+  "pressure": [
+    {"sensor": "P2", "mv": 851}
+  ],
+  "valves": [
+    {"valve": "SV1", "state": "open"}
+  ]
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `node` | string | Node name. Must match the topic |
+| `seq` | integer ≥ 0 | Message counter. Goes up by 1 per readings message and starts from 0 at boot. A gap means messages were lost; a drop means the node rebooted |
+| `ts` | string, **optional** | End of the measuring window, from NTP. **Leave it out** until NTP has synced; the backend then uses the time it received the message |
+| `interval_ms` | integer > 0 | Measured length of this window (`millis()` difference), normally about 1000 |
+| `flow[].sensor` | string | Flow sensor code |
+| `flow[].pulses` | integer ≥ 0 | Pulses counted in this window |
+| `flow[].total` | integer ≥ 0 | Cumulative pulses since boot. Never reset while running; starts again from 0 after a reboot |
+| `pressure[].sensor` | string | Pressure sensor code |
+| `pressure[].mv` | integer | **Sensor** voltage in millivolts, with the resistor divider already undone (pin mV × 1.5), averaged over the window |
+| `valves[].valve` | string | Valve code |
+| `valves[].state` | string | `open` or `closed`: the state the node is driving the valve to |
+
+The arrays list every sensor and valve **configured on that node**. An empty array is
+allowed (e.g. node-1 has no valves).
+
+**How the backend converts** (calibration comes from the `sensors` table, so recalibrating
+never needs a reflash):
+
+- flow L/min = `pulses` ÷ (`interval_ms` / 1000) ÷ `k_factor` (default `k_factor` 98)
+- pressure kPa = (`mv` / 1000 − `cal_offset`) × `cal_scale` (defaults 0.5 V and
+  172.37 kPa/V for the 100 PSI transducer)
+
+**What the backend rejects** (into `rejected_readings`, the rest of the message is still used):
+
+| Reason | When |
+|---|---|
+| `malformed` | Not JSON, a required field missing or of the wrong type, `node` doesn't match the topic, `interval_ms` ≤ 0 |
+| `unknown_sensor` | A sensor code the database doesn't have for this node, or an inactive one |
+| `out_of_range` | The converted value is outside the sensor's `min_valid`..`max_valid` |
+| `bad_timestamp` | `ts` is more than 5 minutes away from the backend's clock |
+
+## 5. `status`: on connect, every 10 s, and the last will
+
+Online (retained):
+```json
+{"node":"node-2","state":"online","fw":"0.1.0","mac":"AA:BB:CC:DD:EE:FF",
+ "ip":"192.168.43.20","rssi":-61,"uptime_s":3605,"heap":182344,"ntp":true}
+```
+
+Offline, published by the broker as the last will (retained):
+```json
+{"node":"node-2","state":"offline"}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `node` | string | Node name |
+| `state` | string | `online` or `offline` |
+| `fw` | string | Firmware version, `major.minor.patch` |
+| `mac` | string | `WiFi.macAddress()`, upper case with colons |
+| `ip` | string | Current IP address |
+| `rssi` | integer | Wi-Fi signal strength, dBm |
+| `uptime_s` | integer | Seconds since boot |
+| `heap` | integer | Free heap, bytes |
+| `ntp` | boolean | Whether the clock is synced |
+
+Only `node` and `state` are required. The node publishes the online message **immediately
+after every connect**, so the retained offline will is replaced straight away.
+
+**Online/offline in the backend:** any message from a node (readings, status or ack)
+counts as a sign of life. The node is marked offline when the last will arrives, or after
+`health.heartbeat_timeout_s` (30 s) with no message at all.
+
+## 6. `cmd`: valve command
+
+```json
+{"id":"7f3c2a9e-1b4d-4c6e-9f2a-3d5e6f7a8b9c","valve":"SV1","action":"close","force":false}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | Command id, a UUID (`valve_commands.correlation_id`). Echoed in the ack |
+| `valve` | string | Valve code |
+| `action` | string | `open` or `close` |
+| `force` | boolean, optional, default `false` | Skip the last-open-valve check. The backend sends `true` only after the operator confirms **the pump is off** |
+
+## 7. `ack`: reply to every `cmd`, within 5 s
+
+```json
+{"id":"7f3c2a9e-1b4d-4c6e-9f2a-3d5e6f7a8b9c","valve":"SV1","result":"done","state":"closed","reason":null}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | The `id` from the command. If the command had no readable `id`, send `""` |
+| `valve` | string | The `valve` from the command, `""` if missing |
+| `result` | string | `done` or `rejected` |
+| `state` | string | The valve's state **after** handling the command: `open` or `closed`. For `unknown_valve` send `"unknown"` |
+| `reason` | string or `null` | `null` when `done`. When `rejected`, one of the codes below |
+
+| `reason` | When |
+|---|---|
+| `unknown_valve` | The node has no valve with that code |
+| `bad_command` | Not JSON, `id` missing, or `action` isn't `open`/`close` |
+| `last_open_valve` | `action` is `close`, `force` isn't `true`, and closing would leave **no valve open on this node** (the pump would dead-head). The check can be switched off in `config.h`, default on |
+
+Rules:
+
+- **Already in that state:** opening an open valve (or closing a closed one) is `done`,
+  with no change. The last-open-valve check doesn't apply, because nothing gets closed.
+- **Duplicates:** QoS 1 can deliver the same command twice. The node remembers the last
+  10 ids. For a repeated id it sends the same ack again and doesn't act twice.
+- **Timeout:** if no ack arrives within `valve.confirm_timeout_s` (5 s), the backend
+  marks the command `timed_out`.
+- The valve state in the next readings message must agree with the ack.
+
+## 8. Valve safety: who checks what
+
+| Layer | Check |
+|---|---|
+| Web app | Before a close that would leave no zone open, it asks the operator to confirm the pump is **off**, then sends `force: true` |
+| Backend | Refuses a close that would leave fewer open zones than `valve.interlock_min_open_zones` (1), unless forced by an operator or administrator. Also refuses commands when the node is offline. A refusal is recorded as a `rejected` command and never sent to the node |
+| Node | Last-open-valve check on its own valves (§7). It never changes a valve because the broker or backend disappeared, and opens every valve at boot |
+
+The node's check is the last line of defence. It works even if a command reaches the
+broker some other way, e.g. from the HiveMQ web client.
+
+## 9. Change log
+
+| Version | Date | Change |
+|---|---|---|
+| 1.0 | 1 Nov 2026 | First version, from hardware brief §5.4 |
