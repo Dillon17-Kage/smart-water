@@ -2,7 +2,7 @@
 // like the ESP32 firmware (docs/mqtt-contract.md), so the backend and web app
 // can be tested without the rig.
 //
-//   dotnet run                      uses the HiveMQ settings in user-secrets
+//   dotnet run                      uses the EMQX settings in user-secrets
 //   dotnet run -- --Mqtt:Host=localhost --Mqtt:Port=1883 --Mqtt:UseTls=false
 //
 // Keys: see PrintHelp() below, or press H while it runs.
@@ -15,8 +15,8 @@ using MQTTnet.Protocol;
 using SmartWater.Simulator;
 
 // ---- Settings ---------------------------------------------------------------
-// HiveMQ host, username and password come from user-secrets (never Git):
-//   dotnet user-secrets set "Mqtt:Host" "xxxx.s1.eu.hivemq.cloud"
+// EMQX host, username and password come from user-secrets (never Git):
+//   dotnet user-secrets set "Mqtt:Host" "xxxx.ala.eu-central-1.emqxsl.com"
 var config = new ConfigurationBuilder()
     .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true)
     .AddUserSecrets<SimulatedNode>(optional: true)
@@ -31,7 +31,7 @@ string nodeName = config["Node"] ?? "node-2";
 if (host == "")
 {
     Console.WriteLine("No broker set. Run once in this folder:");
-    Console.WriteLine("  dotnet user-secrets set \"Mqtt:Host\" \"<your-cluster>.s1.eu.hivemq.cloud\"");
+    Console.WriteLine("  dotnet user-secrets set \"Mqtt:Host\" \"<your-deployment>.emqxsl.com\"");
     Console.WriteLine("  dotnet user-secrets set \"Mqtt:Username\" \"<node-2 username>\"");
     Console.WriteLine("  dotnet user-secrets set \"Mqtt:Password\" \"<node-2 password>\"");
     Console.WriteLine("See docs/setup.md.");

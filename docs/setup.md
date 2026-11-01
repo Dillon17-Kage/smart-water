@@ -42,7 +42,8 @@ dotnet run                     # http://localhost:5000/api/health -> "database":
 cd tools\dbsetup
 dotnet run                                                   # shows what's in it
 dotnet run -- ..\..\db_schema.sql ..\..\db_seed.sql      # empty database only
-dotnet run -- ..\..\db	oolseset_demo_data.sql                 # before a presentation
+dotnet run -- ..\..\db	ools
+eset_demo_data.sql                 # before a presentation
 ```
 
 ### A `dev` branch for testing
@@ -59,57 +60,56 @@ throw-away test branches. For a long-lived `dev`, remove the `ttl` line first.
 
 ---
 
-## 2. HiveMQ Cloud (MQTT broker)
+## 2. EMQX Cloud (MQTT broker)
 
-About 10 minutes.
+About 10 minutes. We first planned HiveMQ Cloud, but HiveMQ retired its free Serverless
+plan (no new clusters, shut down 31 Dec 2026). EMQX Serverless is the same idea and free.
 
-### 2.1 Create the cluster
-1. Go to **https://console.hivemq.cloud** → sign up and confirm your email.
-2. Choose **Serverless** (the free plan) → **Create cluster**.
-3. Open the cluster (**Manage cluster**). On **Overview**, find:
-   - **Cluster URL**, like `a1b2c3d4e5.s1.eu.hivemq.cloud`. Copy it somewhere: you'll paste it below.
-   - **Port** `8883` (TLS). That's the one we use.
+### 2.1 Create the deployment
+1. Go to **https://cloud-intl.emqx.com** → sign up (Google or GitHub is fine).
+2. **New Deployment** → **Serverless** (not Dedicated, which is paid).
+3. Region: a European one if offered. **Spending limit: 0**, so it can never charge you;
+   it pauses instead if the free allowance runs out.
+4. Name it `smart-water` → **Deploy**. Ready in a minute or two.
+5. On the deployment's **Overview**, under connection information, find:
+   - the **address**, like `a1b2c3d4.ala.eu-central-1.emqxsl.com`. You'll paste it below.
+   - **MQTT over TLS** port `8883`. That's the one we use.
+
+The free allowance is about 1 GB of traffic a month. One node sending every second uses
+roughly 60 MB a day, so don't leave the node or the simulator running for weeks.
 
 ### 2.2 Create two logins
 One for the backend, one for node-2. The simulator uses node-2's, because it pretends to
 be node-2.
-1. Open the **Access Management** tab → **Credentials** → **Create credential**
-   (on some versions it's **Add credentials**).
-2. First login:
-   - **Username:** `backend`
-   - **Password:** make a strong one (12+ characters, upper and lower case, digits).
-     A password manager's generator is ideal.
-   - **Permission:** **Publish and Subscribe**
-   - → **Create** / **Save**.
-3. Second login: **Username** `node-2`, a different strong password, **Publish and Subscribe**.
-4. Keep both passwords in your password manager. HiveMQ won't show them again.
+1. In the deployment: **Access Control** → **Authentication** → **+ Add**.
+2. Username `backend`, a strong password (20+ letters and digits; a password manager's
+   generator is ideal) → **Confirm**.
+3. Again: username `node-2`, a **different** strong password.
+4. Keep both passwords in your password manager.
 
 ### 2.3 Give the passwords to the simulator and the backend
 In PowerShell from the repo folder, pasting your values between the single quotes:
 
 ```powershell
 cd tools\simulator
-dotnet user-secrets set 'Mqtt:Host' '<cluster URL, without https://>'
+dotnet user-secrets set 'Mqtt:Host' '<address, e.g. a1b2c3d4.ala.eu-central-1.emqxsl.com>'
 dotnet user-secrets set 'Mqtt:Username' 'node-2'
 dotnet user-secrets set 'Mqtt:Password' '<node-2 password>'
 
-cd ..\..\backend\src\SmartWater.Api
-dotnet user-secrets set 'Mqtt:Host' '<cluster URL>'
+cd ..\..ackend\src\SmartWater.Api
+dotnet user-secrets set 'Mqtt:Host' '<address>'
 dotnet user-secrets set 'Mqtt:Username' 'backend'
 dotnet user-secrets set 'Mqtt:Password' '<backend password>'
 ```
 
 The firmware gets node-2's details in `firmware/node/secrets.h` (see `firmware/` README).
+The ESP32 must trust EMQX's root certificate, **DigiCert Global Root G2**.
 
-### 2.4 Test with HiveMQ's web client
-1. In the cluster, open the **Web Client** tab.
-2. Connect with the **backend** username and password.
-3. **Subscriptions** → **Add new topic subscription** → topic `smartwater/#` → **Subscribe**.
-4. In PowerShell: `cd tools\simulator` then `dotnet run`. Within a second the web client
-   shows `smartwater/node-2/status` (online), then `smartwater/node-2/readings` every
-   second.
-5. Press **O** in the simulator: `status` with `"state":"offline"` should appear straight
-   away. Press **O** again to reconnect, then **Q** to quit.
+### 2.4 Check it works
+1. `cd tools\simulator` then `dotnet run`. It prints `connected` within a few seconds.
+2. With the backend running too, its log shows node-2 online and readings arriving.
+3. Press **O** in the simulator: node-2 should go offline straight away (the last will).
+   Press **O** again to reconnect, then **Q** to quit.
 
 ---
 
@@ -145,7 +145,7 @@ Do this after the backend works locally. The walkthrough comes when the work rea
    | Key | Value |
    |---|---|
    | `DATABASE_URL` | `DATABASE_URL` from `.env.local` (pooled, production branch), pasted as it is |
-   | `Mqtt__Host` | HiveMQ cluster URL |
+   | `Mqtt__Host` | EMQX deployment address |
    | `Mqtt__Username` | `backend` |
    | `Mqtt__Password` | backend password |
 4. **Apply**. The first build takes about 5 minutes. Then open

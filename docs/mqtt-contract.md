@@ -1,6 +1,6 @@
 # MQTT contract (node ↔ backend)
 
-**Version 1.1, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
+**Version 1.2, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
 (`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
 Both sides must match it exactly. It's written by the software session from §5.4 of
 `docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
@@ -9,7 +9,7 @@ Both sides must match it exactly. It's written by the software session from §5.
 
 | Item | Value |
 |---|---|
-| Broker | HiveMQ Cloud Serverless, TLS on port **8883**, username + password |
+| Broker | EMQX Cloud Serverless, TLS on port **8883**, username + password. The server certificate chains to **DigiCert Global Root G2** (the CA the ESP32 must trust) |
 | Node client id | `sw-node-2` (the `nodes.mqtt_client_id` column) |
 | Backend client id | `sw-backend-` + a random suffix |
 | Keep-alive | **15 s**. The broker publishes the last will about 1.5 × keep-alive after the node disappears |
@@ -192,7 +192,7 @@ Rules:
 | Node | Last-open-valve check on its own valves (§7). It never changes a valve because the broker or backend disappeared, and opens every valve at boot |
 
 The node's check is the last line of defence. It works even if a command reaches the
-broker some other way, e.g. from the HiveMQ web client.
+broker some other way, e.g. from an MQTT test client.
 
 ## 9. Change log
 
@@ -200,3 +200,4 @@ broker some other way, e.g. from the HiveMQ web client.
 |---|---|---|
 | 1.0 | 1 Nov 2026 | First version, from hardware brief §5.4 |
 | 1.1 | 1 Nov 2026 | Sensors renumbered along the water path: Zone A is now F2 (in), **F3** (out), **P1** (pressure). Message format unchanged |
+| 1.2 | 1 Nov 2026 | Broker moved from HiveMQ Cloud Serverless (retired, no new clusters) to EMQX Cloud Serverless. Only §1 changed: host and TLS root CA. Topics and messages unchanged |

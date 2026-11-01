@@ -9,11 +9,11 @@ or the real node, never both at once.**
 
 ## Set up once
 
-HiveMQ details go in user-secrets, never in Git. Use node-2's credentials (docs/setup.md):
+EMQX details go in user-secrets, never in Git. Use node-2's credentials (docs/setup.md):
 
 ```powershell
 cd tools\simulator
-dotnet user-secrets set "Mqtt:Host" "<your-cluster>.s1.eu.hivemq.cloud"
+dotnet user-secrets set "Mqtt:Host" "<your-deployment>.emqxsl.com"
 dotnet user-secrets set "Mqtt:Username" "node-2"
 dotnet user-secrets set "Mqtt:Password" "<node-2 password>"
 ```
@@ -56,7 +56,7 @@ It connects, publishes `online`, then sends readings every second and status eve
 - **Offline:** while offline it keeps counting, so `seq` jumps and the `total` counters
   carry on when it comes back, like a real node after a Wi-Fi drop.
 
-## Using a local broker instead of HiveMQ
+## Using a local broker instead of EMQX
 
 ```powershell
 dotnet run -- --Mqtt:Host=localhost --Mqtt:Port=1883 --Mqtt:UseTls=false

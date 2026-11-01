@@ -22,7 +22,7 @@ alerts and controls the solenoid valves; a React web app shows it all live.
 | Part | Where | Cost |
 |---|---|---|
 | Database | Neon (PostgreSQL), Frankfurt | Free |
-| MQTT broker | HiveMQ Cloud Serverless | Free |
+| MQTT broker | EMQX Cloud Serverless | Free |
 | Backend + web app | One Render web service (free), built from the `Dockerfile` | Free |
 | Fallback | Your laptop: `dotnet run` serves everything on http://localhost:5000 | Free |
 
@@ -92,7 +92,7 @@ it found. That is the first thing to check after setting up Neon or deploying.
 `neon deploy` / `neon env pull` writes the connection strings into `.env.local` (Git ignores
 it) and the backend reads them from there. Details in `docs/setup.md` section 1.
 
-**HiveMQ Cloud** (MQTT): create a free Serverless cluster and an access credential.
+**EMQX Cloud** (MQTT): create a free Serverless deployment and two logins.
 Needed from Phase 1. The host, username and password go in `firmware/node/secrets.h`
 and in Render's environment settings, never in Git.
 
@@ -106,7 +106,7 @@ and in Render's environment settings, never in Git.
 
 ## Keeping secrets out of Git
 
-Never commit: the Wi-Fi password, the HiveMQ login or the Neon connection string. They
+Never commit: the Wi-Fi password, the MQTT login or the Neon connection string. They
 live in `firmware/node/secrets.h` and `.env.local` (both ignored by Git), `dotnet user-secrets` on your PC,
 and Render's environment settings. Keep the GitHub repo private.
 

@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>SmartWater.Simulator</RootNamespace>
-    <!-- HiveMQ host/username/password live here, not in Git:
-         dotnet user-secrets set "Mqtt:Host" "<cluster>.s1.eu.hivemq.cloud" -->
+    <!-- EMQX host/username/password live here, not in Git:
+         dotnet user-secrets set "Mqtt:Host" "<deployment>.emqxsl.com" -->
     <UserSecretsId>smart-water-simulator</UserSecretsId>
   </PropertyGroup>
 
