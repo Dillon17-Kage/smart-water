@@ -67,7 +67,12 @@ const int      PRESSURE_BURST       = 8;     // ADC reads per burst (about 160 p
 const uint32_t MIN_PULSE_GAP_US     = 1000;  // closer pulses are noise (real max ~600 Hz)
 
 // ---------------------------------------------------------------- measuring
-const float DIVIDER_RATIO = 1.5;  // 10k/20k divider in front of each sensor pin
+// Divider in front of each sensor pin (E12 values): 12k from the sensor, 22k to GND.
+// 5 V in gives 3.24 V at the pin. Sensor V = pin V x (12 + 22) / 22.
+// Change these two if other resistors are fitted.
+const float DIVIDER_R_TOP    = 12000.0;
+const float DIVIDER_R_BOTTOM = 22000.0;
+const float DIVIDER_RATIO = (DIVIDER_R_TOP + DIVIDER_R_BOTTOM) / DIVIDER_R_BOTTOM;
 
 // Default calibration, used ONLY for the Serial monitor. The backend converts the raw
 // values with the calibration stored in the database.

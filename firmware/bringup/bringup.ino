@@ -10,8 +10,8 @@
 // Sensor codes follow docs/mqtt-contract.md v1.1 (the brief still says F6 for F3, P2 for P1).
 
 // ---------------------------------------------------------------- pins
-const int PIN_F2  = 18;  // flow IN  (yellow wire, through the 10k/20k divider)
-const int PIN_F3  = 19;  // flow OUT (yellow wire, through the 10k/20k divider)
+const int PIN_F2  = 18;  // flow IN  (yellow wire, through the 12k/22k divider)
+const int PIN_F3  = 19;  // flow OUT (yellow wire, through the 12k/22k divider)
 const int PIN_P1  = 32;  // pressure (ADC1, so it keeps working once Wi-Fi is added)
 const int PIN_SV1 = 26;  // MOSFET gate: HIGH = coil energised
 
@@ -21,7 +21,11 @@ const bool SV1_NORMALLY_CLOSED = true;   // NC valve: coil energised = open
 const float PULSES_PER_LPM = 98.0;       // YF-S401: 5880 pulses/L = 98 Hz per L/min
 const uint32_t MIN_PULSE_GAP_US = 1000;  // pulses closer than 1 ms are noise (real max ~600 Hz)
 
-const float DIVIDER_RATIO = 1.5;         // 10k/20k divider: sensor V = pin V x 1.5
+// Divider in front of each sensor pin (E12 values): 12k from the sensor, 22k to GND.
+// 5 V in gives 3.24 V at the pin. Sensor V = pin V x (12 + 22) / 22.
+const float DIVIDER_R_TOP    = 12000.0;
+const float DIVIDER_R_BOTTOM = 22000.0;
+const float DIVIDER_RATIO = (DIVIDER_R_TOP + DIVIDER_R_BOTTOM) / DIVIDER_R_BOTTOM;
 const float P1_ZERO_V   = 0.5;           // sensor volts at 0 kPa
 const float P1_SPAN_V   = 4.0;           // 0.5 V .. 4.5 V
 const float P1_FULL_KPA = 689.5;         // 100 PSI
