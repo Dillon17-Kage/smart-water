@@ -8,9 +8,9 @@ import type { Baseline, DetectionSettings, MonitoringNode, RoleName, Sensor, Val
  *   node-1 at the tank, node-2 Zones A+B (SV1, SV2), node-3 Zone C (SV3)
  *
  * VITE_SIM_STAGE picks how much of it exists, so the simulator matches the bench:
- *   zone-a    (default) Zone A only: F2, F3, P1, SV1 on node-2, bypass protects the pump
+ *   zone-a    (default) Zone A only: F2, F3, P1, SV1 on node-2
  *   two-zone  + Zone B: F4, F5, P2, SV2 on node-2
- *   full      + Zone C on node-3, + node-1 with F1, F8; valve interlock on
+ *   full      + Zone C on node-3, + node-1 with F1, F8
  */
 export type RigStage = 'zone-a' | 'two-zone' | 'full';
 
@@ -77,8 +77,9 @@ export const settings: DetectionSettings = {
   confirmSeconds: 10,
   clearSeconds: 10,
   heartbeatTimeoutSeconds: 30,
-  // 0 while the bypass protects the pump; db/rig/20_zone_c.sql sets it to 1.
-  interlockMinOpenZones: builtBy('full') ? 1 : 0,
+  // At least one zone stays open while the pump runs. Closing the last one needs
+  // the operator to confirm the pump is off (force).
+  interlockMinOpenZones: 1,
 };
 
 export const TRUNK_PRESSURE = 70;

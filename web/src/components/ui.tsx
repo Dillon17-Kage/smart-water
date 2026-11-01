@@ -134,6 +134,7 @@ export function ConfirmDialog({
   confirmLabel,
   danger,
   busy,
+  confirmDisabled,
   onConfirm,
   onCancel,
 }: {
@@ -143,6 +144,8 @@ export function ConfirmDialog({
   confirmLabel: string;
   danger?: boolean;
   busy?: boolean;
+  /** Keeps the confirm button off until the dialog's own checks pass. */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -171,7 +174,7 @@ export function ConfirmDialog({
         <Button onClick={onCancel} disabled={busy}>
           Cancel
         </Button>
-        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy} autoFocus>
+        <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy || confirmDisabled} autoFocus>
           {busy ? 'Sending…' : confirmLabel}
         </Button>
       </div>

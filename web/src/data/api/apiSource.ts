@@ -15,7 +15,7 @@ import { LoginError, type DataSource } from '../source';
  *   GET  /api/valve-commands              -> ValveCommand[]
  *   POST /api/alerts/{id}/acknowledge     -> Alert
  *   POST /api/alerts/{id}/resolve         -> Alert
- *   POST /api/valves/{id}/commands        { action: 'open'|'close' } -> ValveCommand
+ *   POST /api/valves/{id}/commands        { action: 'open'|'close', force } -> ValveCommand
  *
  * SignalR hub at /hubs/live (JWT passed as access_token), server -> client:
  *   Readings(Reading[])  NodeChanged(Node)  ValveChanged(Valve)
@@ -71,8 +71,11 @@ export function createApiSource(baseUrl: string): DataSource {
     getValveCommands: () => request<ValveCommand[]>('/api/valve-commands'),
     acknowledgeAlert: (id) => request<Alert>(`/api/alerts/${id}/acknowledge`, { method: 'POST' }),
     resolveAlert: (id) => request<Alert>(`/api/alerts/${id}/resolve`, { method: 'POST' }),
-    sendValveCommand: (valveId, action) =>
-      request<ValveCommand>(`/api/valves/${valveId}/commands`, { method: 'POST', body: JSON.stringify({ action }) }),
+    sendValveCommand: (valveId, action, force = false) =>
+      request<ValveCommand>(`/api/valves/${valveId}/commands`, {
+        method: 'POST',
+        body: JSON.stringify({ action, force }),
+      }),
 
     connect(onEvent, onStatus) {
       const connection = new HubConnectionBuilder()

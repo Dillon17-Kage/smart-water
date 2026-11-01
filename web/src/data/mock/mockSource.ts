@@ -105,10 +105,10 @@ export function createMockSource(): DataSource {
       if (!can(user.role, 'alerts.resolve')) throw new Error('Your role cannot resolve alerts.');
       return delay(simulator.resolveAlert(alertId, user.username));
     },
-    async sendValveCommand(valveId, action) {
+    async sendValveCommand(valveId, action, force = false) {
       const user = requireUser();
       if (!can(user.role, 'valves.operate')) throw new Error('Your role cannot operate valves.');
-      return delay(simulator.sendValveCommand(valveId, action, user.username), 100);
+      return delay(simulator.sendValveCommand(valveId, action, user.username, force), 100);
     },
 
     connect(onEvent, onStatus) {

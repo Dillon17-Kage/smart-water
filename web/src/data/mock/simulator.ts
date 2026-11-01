@@ -25,7 +25,7 @@ import * as rig from './rig';
  *     so inlet - outlet - flowOffset ~= L; the zone also draws a little more
  *   - the leaking zone's inlet pressure falls, other zones drop slightly
  *   - a closed zone valve stops all flow (and any leak) in that zone; the
- *     surplus goes to the other zones or the bypass
+ *     surplus goes to the other zones
  *   - F1 (trunk) = sum of zone inlets, F8 (return) = sum of zone outlets
  */
 
@@ -184,7 +184,7 @@ export class RigSimulator {
 
       const leak = this.getLeak(zone.id);
       const otherLeaks = totalLeak - leak;
-      const divertBoost = 1 + 0.12 * closedCount; // surplus from closed zones / the bypass
+      const divertBoost = 1 + 0.12 * closedCount; // surplus from closed zones
       const trueIn = (base.inletFlow * divertBoost - 0.05 * otherLeaks + 0.25 * leak) * pumpWobble;
       const trueOut = trueIn - leak;
       const inValue = trueIn + noise(0.015);
@@ -383,7 +383,7 @@ export class RigSimulator {
 
   // ------------------------------------------------------------------ control service
 
-  sendValveCommand(valveId: number, action: ValveAction, username: string | null): ValveCommand {
+  sendValveCommand(valveId: number, action: ValveAction, username: string | null, force = false): ValveCommand {
     const valve = this.valves.find((v) => v.id === valveId);
     if (!valve) throw new Error('Valve not found');
     const node = this.nodes.find((n) => n.id === valve.nodeId)!;
@@ -410,9 +410,10 @@ export class RigSimulator {
     if (node.status === 'offline') {
       command.status = 'rejected';
       command.rejectReason = `${node.name} is offline, so the command could not be delivered`;
-    } else if (action === 'close' && openAfter < minOpen) {
+    } else if (action === 'close' && openAfter < minOpen && !force) {
+      // force = the operator confirmed the pump is off, same as the backend.
       command.status = 'rejected';
-      command.rejectReason = `Interlock: at least ${minOpen} zone${minOpen === 1 ? '' : 's'} must stay open to protect the pump`;
+      command.rejectReason = `Interlock: at least ${minOpen} zone${minOpen === 1 ? '' : 's'} must stay open to protect the pump. Confirm the pump is off to override`;
     }
 
     this.commands.unshift(command);

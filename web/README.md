@@ -39,8 +39,9 @@ Click **Simulator** (bottom right) to:
   "Node offline", and valve commands to it are refused.
 
 Things worth trying: isolate a leaking zone from the Valves page or by clicking a valve on
-the Network schematic. On the one-zone rig the bypass protects the pump, so the valve
-interlock is off; in the `full` stage, closing the last open zone is refused.
+the Network schematic. Closing the last open zone would dead-head the pump, so the dialog
+then asks you to confirm the pump is off before it sends the command (without that, the
+interlock refuses it).
 
 ## Pages
 

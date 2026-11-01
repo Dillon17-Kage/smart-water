@@ -39,8 +39,11 @@ export interface DataSource {
 
   acknowledgeAlert(alertId: number): Promise<Alert>;
   resolveAlert(alertId: number): Promise<Alert>;
-  /** Resolves with the command as recorded. A rejected command is not an error. */
-  sendValveCommand(valveId: number, action: ValveAction): Promise<ValveCommand>;
+  /**
+   * Resolves with the command as recorded. A rejected command is not an error.
+   * `force`: the operator confirmed the pump is off, so the interlock is skipped.
+   */
+  sendValveCommand(valveId: number, action: ValveAction, force?: boolean): Promise<ValveCommand>;
 
   /** Subscribe to live pushes. Returns an unsubscribe function. */
   connect(onEvent: (event: LiveEvent) => void, onStatus: (status: ConnectionStatus) => void): () => void;

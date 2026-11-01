@@ -108,7 +108,7 @@ interface LiveDataValue extends State {
   reload: () => void;
   acknowledgeAlert: (id: number) => Promise<void>;
   resolveAlert: (id: number) => Promise<void>;
-  sendValveCommand: (valveId: number, action: ValveAction) => Promise<ValveCommand>;
+  sendValveCommand: (valveId: number, action: ValveAction, force?: boolean) => Promise<ValveCommand>;
 }
 
 const LiveDataContext = createContext<LiveDataValue | null>(null);
@@ -151,8 +151,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       reload: () => void load(() => false),
       acknowledgeAlert: async (id) => dispatch({ type: 'alert', alert: await dataSource.acknowledgeAlert(id) }),
       resolveAlert: async (id) => dispatch({ type: 'alert', alert: await dataSource.resolveAlert(id) }),
-      sendValveCommand: async (valveId, action) => {
-        const command = await dataSource.sendValveCommand(valveId, action);
+      sendValveCommand: async (valveId, action, force) => {
+        const command = await dataSource.sendValveCommand(valveId, action, force);
         dispatch({ type: 'valveCommand', command });
         return command;
       },
