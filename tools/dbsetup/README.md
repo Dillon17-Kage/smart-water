@@ -10,6 +10,7 @@ dotnet run                                                   # show what's in th
 dotnet run -- ..\..\db\001_schema.sql ..\..\db\002_seed.sql      # set up an empty database
 dotnet run -- ..\..\db\rig\10_zone_b.sql                       # when Zone B is built
 dotnet run -- ..\..\db\tools\reset_demo_data.sql                 # before a presentation
+dotnet run -- adduser dillon administrator "Dillon Swart"     # create or update a login (asks for the password)
 ```
 
 Each file runs in its own transaction, so a file that fails changes nothing. The

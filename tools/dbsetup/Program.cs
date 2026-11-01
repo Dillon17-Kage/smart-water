@@ -3,6 +3,7 @@
 //   cd tools\dbsetup
 //   dotnet run                                              shows what's in the database
 //   dotnet run -- ..\..\db\001_schema.sql ..\..\db\002_seed.sql   runs the files in order
+//   dotnet run -- adduser alice operator "Alice Smith"         creates or updates a login (asks for the password)
 //
 // It uses DATABASE_URL_UNPOOLED, the direct connection: Neon recommends a direct
 // (not pooled) connection for schema changes. Which branch that is depends on the
@@ -30,6 +31,38 @@ Console.WriteLine($"Neon branch {branch}, host {settings.Host}, database {settin
 
 await using var connection = new NpgsqlConnection(settings.ConnectionString);
 await connection.OpenAsync();
+
+// dotnet run -- adduser <username> <role> ["Full Name"]
+// Asks for the password here, so it never ends up in Git or in the shell history.
+// Running it again for an existing username changes their password and role.
+if (args.Length >= 3 && args[0] == "adduser")
+{
+    string username = args[1], role = args[2];
+    string? fullName = args.Length > 3 ? args[3] : null;
+    string password = ReadHidden($"Password for {username}: ");
+    if (password.Length < 8 || password != ReadHidden("Again: "))
+    {
+        Console.WriteLine("Passwords didn't match, or shorter than 8 characters. Nothing changed.");
+        return 1;
+    }
+
+    await using var upsert = new NpgsqlCommand("""
+        INSERT INTO users (role_id, username, full_name, password_hash)
+        SELECT id, @username, @fullName, @hash FROM roles WHERE name = @role
+        ON CONFLICT (username) DO UPDATE
+            SET role_id = EXCLUDED.role_id, full_name = COALESCE(EXCLUDED.full_name, users.full_name),
+                password_hash = EXCLUDED.password_hash, failed_logins = 0, locked_until = NULL, active = true
+        """, connection);
+    upsert.Parameters.AddWithValue("username", username);
+    upsert.Parameters.AddWithValue("fullName", (object?)fullName ?? DBNull.Value);
+    upsert.Parameters.AddWithValue("hash", BCrypt.Net.BCrypt.HashPassword(password));
+    upsert.Parameters.AddWithValue("role", role);
+    bool saved = await upsert.ExecuteNonQueryAsync() == 1;
+    Console.WriteLine(saved
+        ? $"Saved {username} ({role})."
+        : $"No role called '{role}'. Use administrator, operator, technician or engineer.");
+    return saved ? 0 : 1;
+}
 
 foreach (string file in args)
 {
@@ -87,3 +120,20 @@ await using (var interlock = new NpgsqlCommand(
     Console.WriteLine($"Valve interlock (min open zones): {await interlock.ExecuteScalarAsync()}");
 }
 return 0;
+
+// Reads a line without showing it. Falls back to plain input when typing is piped in.
+static string ReadHidden(string prompt)
+{
+    Console.Write(prompt);
+    if (Console.IsInputRedirected) return Console.ReadLine() ?? "";
+    var text = new System.Text.StringBuilder();
+    while (true)
+    {
+        var key = Console.ReadKey(intercept: true);
+        if (key.Key == ConsoleKey.Enter) break;
+        if (key.Key == ConsoleKey.Backspace) { if (text.Length > 0) text.Length--; }
+        else if (!char.IsControl(key.KeyChar)) text.Append(key.KeyChar);
+    }
+    Console.WriteLine();
+    return text.ToString();
+}

@@ -14,3 +14,11 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false             # paste DATABASE_URL from .env.local (Neon, pooled) when prompted
+      - key: Mqtt__Host
+        sync: false             # EMQX deployment address
+      - key: Mqtt__Username
+        sync: false             # backend
+      - key: Mqtt__Password
+        sync: false             # the backend login's password
+      - key: Jwt__Key
+        generateValue: true     # Render makes a random key that signs login tokens
