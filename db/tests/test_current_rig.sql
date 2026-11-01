@@ -27,7 +27,7 @@ FROM v_zone_balance GROUP BY 1, 2 ORDER BY 1, 2;
 \echo '--- only active zones appear in the balance view: expect A only'
 SELECT DISTINCT zone_code FROM v_zone_balance;
 
-\echo '--- interlock setting for the one-zone rig: expect 0'
+\echo '--- interlock setting (no bypass, so on): expect 1'
 SELECT value FROM settings WHERE key = 'valve.interlock_min_open_zones';
 
 ROLLBACK;

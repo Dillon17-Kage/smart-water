@@ -39,13 +39,16 @@ Use a phone hotspot for the ESP32 at the venue; campus Wi-Fi login pages block i
 
 | Item | Code | Node | GPIO |
 |---|---|---|---|
-| Zone A inlet flow (YF-S401) | F2 | node-2 | 25 |
-| Zone A outlet flow (YF-S401) | F6 | node-2 | 26 |
-| Zone A inlet pressure (100 PSI) | P2 | node-2 | 34 |
-| Zone A solenoid | SV1 | node-2 | 23 |
+| Zone A inlet flow (YF-S401) | F2 | node-2 | 18 |
+| Zone A outlet flow (YF-S401) | F6 | node-2 | 19 |
+| Zone A inlet pressure (100 PSI) | P2 | node-2 | 32 |
+| Zone A solenoid (normally closed) | SV1 | node-2 | 26 |
+
+There is no bypass, so **switch the pump off before closing SV1** (the last open valve).
+The web app asks the operator to confirm this before it sends the close.
 
 Numbering follows the design document. Adding Zone B (F3, F7, P3, SV2 on node-2), Zone C
-(node-3) and the trunk/return sensors (node-1) is a data change: run the matching script
+(node-3) and the trunk/return flow sensors (node-1) is a data change: run the matching script
 in `db/rig/`. See `db/README.md`.
 
 ## Windows setup

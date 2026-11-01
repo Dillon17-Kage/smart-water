@@ -1,6 +1,7 @@
 -- Smoke test: simulates 60 s of readings with a 0.8 L/min leak opening in
--- Zone B at t = 30 s, with the whole rig loaded (002 + all db/rig scripts), then checks the mass-balance view finds it and that the
--- constraints reject bad data. Runs in a transaction and rolls back.
+-- Zone B at t = 30 s, with the whole rig loaded (002 + all db/rig scripts),
+-- then checks the mass-balance view finds it and that the constraints reject
+-- bad data. There are no P1/P5 sensors, so only P2-P4 get readings. Runs in a transaction and rolls back.
 \set ON_ERROR_STOP 1
 BEGIN;
 
@@ -25,11 +26,9 @@ SELECT s.id, ts,
          WHEN 'F7' THEN 2.0
          WHEN 'F4' THEN 2.0
          WHEN 'F8' THEN 2.0
-         WHEN 'P1' THEN 90
          WHEN 'P2' THEN 80
          WHEN 'P3' THEN 80 - CASE WHEN t >= 30 THEN 6 ELSE 0 END
          WHEN 'P4' THEN 80
-         WHEN 'P5' THEN 20
        END
 FROM generate_series(0, 59) t,
      LATERAL (SELECT timestamptz '2026-10-13 08:00:00+00' + t * interval '1 second') g(ts),

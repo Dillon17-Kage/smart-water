@@ -3,16 +3,22 @@
 | File | What it does |
 |---|---|
 | `001_schema.sql` | All tables, constraints, indexes and two views |
-| `002_seed.sql` | Roles, zones, settings and the hardware **as built now**: Zone A on node-2 (F2, F6, P2, SV1) |
+| `002_seed.sql` | Roles, zones, settings and the hardware **as built now**: Zone A on node-2 (F2 GPIO18, F6 GPIO19, P2 GPIO32, SV1 GPIO26) |
 | `rig/10_zone_b.sql` | Adds Zone B to node-2 (F3, F7, P3, SV2) |
-| `rig/20_zone_c.sql` | Adds node-3 and Zone C (F4, F8, P4, SV3) and switches the valve interlock on |
-| `rig/30_trunk_return.sql` | Adds node-1 at the tank (F1, F5, P1, P5) |
+| `rig/20_zone_c.sql` | Adds node-3 and Zone C (F4, F8, P4, SV3) |
+| `rig/30_trunk_return.sql` | Adds node-1 at the tank (F1, F5). No trunk/return pressure sensors |
 | `tools/reset_demo_data.sql` | Clears readings, leaks, alerts and commands before a presentation |
 | `tests/test_current_rig.sql` | Simulated 0.4 L/min leak in Zone A on the current rig; rolls back |
 | `tests/test_full_rig.sql` | Simulated 0.8 L/min leak in Zone B on the full rig, plus constraint checks; rolls back |
 
 Numbering follows the design document: F1 trunk, F5 return, F2–F4 zone inlets,
-F6–F8 zone outlets, P1 trunk, P2–P4 zone inlets, P5 return.
+F6–F8 zone outlets, P2–P4 zone inlets. The design document also has P1 (trunk) and P5
+(return) pressure, but they aren't being built; the schema still allows them.
+Pins follow `docs/hardware-brief.md` section 3.
+
+**Valve interlock is on** (`valve.interlock_min_open_zones` = 1). There is no bypass, so
+closing the last open valve while the pump runs would dead-head it. The web app lets an
+operator override it only after confirming the pump is off.
 
 ## Set it up on Neon
 
