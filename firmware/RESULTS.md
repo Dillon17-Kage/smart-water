@@ -146,7 +146,7 @@ Bring-up sketch, 19 consecutive one-second lines. SV1 reported open throughout.
 | F3 (outlet) | 1601 pulses over 18 windows, about 88.9 pulses/s (0.91 L/min at the default k-factor) |
 | F3 / F2 pulse ratio | 0.985, a 1.5% difference |
 | P1 at the pin | 378–388 mV, sensor about 0.59 V |
-| P1 above the 0.38 V zero | about 0.21 V, roughly 36 kPa (the serial line's 16 kPa assumes a 0.5 V zero) |
+| P1 gauge pressure | roughly 32–36 kPa: the serial line's 16 kPa assumes a 0.5 V zero, but this sensor reads about −16 to −20 kPa at rest (0.38–0.41 V). The exact value needs `zero P1` |
 
 The readings were steady, so water flows through the whole loop and all three sensors
 work under real flow. The default k-factor has not been checked against a measured
@@ -194,10 +194,16 @@ the report's discussion. Any of these fixes it; only the first needs no firmware
 
 ## 6. Firmware written
 
-**Added since section 5 was written, compiled but not yet tested on the board:** Wi-Fi with
-retry, MQTT over TLS to EMQX (certificate checked against DigiCert Global Root G2), NTP
-timestamps, readings every second, status every 10 s with a retained last will, and valve
-commands with acknowledgements and duplicate handling, per `docs/mqtt-contract.md` v1.2.
+**Added since section 5 was written:** Wi-Fi with retry, MQTT over TLS to EMQX (certificate
+checked against DigiCert Global Root G2), NTP timestamps, readings every second, status
+every 10 s with a retained last will, and valve commands with acknowledgements and
+duplicate handling, per `docs/mqtt-contract.md` v1.2.
+
+**Tested so far:** `node.ino` is flashed. It joined a phone hotspot and connected to EMQX
+over TLS with the `node-2` login. The connection dropped once after about 20 s for an
+unknown reason, reconnected by itself, then stayed up for a 90 s watch. **Not yet tested:**
+whether messages arrive at the backend and web app, valve commands and acks over MQTT, and
+the last will.
 
 ### `bringup/bringup.ino` (step 1, on the board now)
 
