@@ -24,6 +24,9 @@
 // function prototypes above the first function.
 enum ValveResult { VALVE_DONE, VALVE_UNKNOWN, VALVE_LAST_OPEN };
 
+// What the backend last told us about leaks. UNKNOWN until its message arrives.
+enum LeakIndicator { LEAK_UNKNOWN, LEAK_NONE, LEAK_CONFIRMED };
+
 // ================================================================ flow counting
 // One counter per flow sensor. The interrupt handler only touches these; "volatile"
 // because they change behind loop()'s back, and the spinlock stops loop() reading a
@@ -243,6 +246,9 @@ char readingsTopic[48];
 char statusTopic[48];
 char cmdTopic[48];
 char ackTopic[48];
+char indicatorTopic[48];
+
+LeakIndicator leakIndicator = LEAK_UNKNOWN;
 
 bool wifiWasUp = false;
 bool mqttWasUp = false;
@@ -264,7 +270,33 @@ char rememberedIds[REMEMBERED_ACKS][48];
 char rememberedAcks[REMEMBERED_ACKS][220];
 int nextRememberedAck = 0;
 
+// Green must never claim "all fine" when the node can't hear the backend, so with no
+// connection, or before the backend's message arrives, both LEDs are off.
+void updateLeds() {
+  bool connected = mqtt.connected();
+  digitalWrite(LED_GREEN_PIN, connected && leakIndicator == LEAK_NONE ? HIGH : LOW);
+  digitalWrite(LED_RED_PIN, connected && leakIndicator == LEAK_CONFIRMED ? HIGH : LOW);
+}
+
+void handleIndicatorMessage(const char *payload) {
+  JsonDocument indicator;
+  LeakIndicator newState = LEAK_UNKNOWN;
+  if (!deserializeJson(indicator, payload) && indicator["leak"].is<bool>()) {
+    newState = indicator["leak"].as<bool>() ? LEAK_CONFIRMED : LEAK_NONE;
+  }
+  if (newState != leakIndicator) {
+    Serial.printf("> Leak indicator: %s\n", newState == LEAK_CONFIRMED ? "LEAK (red)"
+                                          : newState == LEAK_NONE      ? "no leak (green)"
+                                                                       : "unknown (LEDs off)");
+  }
+  leakIndicator = newState;
+}
+
 void onMqttMessage(String &topic, String &payload) {
+  if (topic == indicatorTopic) {
+    handleIndicatorMessage(payload.c_str());
+    return;
+  }
   if (cmdQueueCount >= CMD_QUEUE_SIZE) {
     Serial.println("> MQTT: command queue full, command dropped");
     return;
@@ -366,6 +398,7 @@ void setupNetwork() {
   snprintf(statusTopic, sizeof(statusTopic), "smartwater/%s/status", NODE_ID);
   snprintf(cmdTopic, sizeof(cmdTopic), "smartwater/%s/cmd", NODE_ID);
   snprintf(ackTopic, sizeof(ackTopic), "smartwater/%s/ack", NODE_ID);
+  snprintf(indicatorTopic, sizeof(indicatorTopic), "smartwater/%s/indicator", NODE_ID);
 
   if (MQTT_INSECURE_TLS_DEBUG) {
     tlsClient.setInsecure();
@@ -401,7 +434,9 @@ void connectMqtt() {
     Serial.println("MQTT: connected");
     mqttWasUp = true;
     mqttRetryDelayMs = MQTT_RETRY_MIN_MS;
+    leakIndicator = LEAK_UNKNOWN;  // forget the old state; the retained message brings it back
     mqtt.subscribe(cmdTopic, 1);  // clean session: subscribe again after every connect
+    mqtt.subscribe(indicatorTopic, 1);
     publishStatus();              // replaces the retained "offline" straight away
   } else {
     Serial.printf("MQTT: failed (error %d, broker code %d), retrying in %lu s\n",
@@ -555,6 +590,9 @@ void printStatus() {
   Serial.printf("  MQTT: %s, client id %s\n", mqtt.connected() ? "connected" : "not connected",
                 MQTT_CLIENT_ID);
   Serial.printf("  clock: %s\n", clockIsSynced() ? "synced (NTP)" : "not synced yet");
+  Serial.printf("  leak indicator: %s\n", leakIndicator == LEAK_CONFIRMED ? "LEAK (red)"
+                                        : leakIndicator == LEAK_NONE      ? "no leak (green)"
+                                                                          : "unknown (LEDs off)");
 }
 
 void handleValveCommand(const char *code, bool open, bool force) {
@@ -643,6 +681,11 @@ void setup() {
     driveValve(v, true);
   }
 
+  pinMode(LED_GREEN_PIN, OUTPUT);
+  pinMode(LED_RED_PIN, OUTPUT);
+  digitalWrite(LED_GREEN_PIN, LOW);
+  digitalWrite(LED_RED_PIN, LOW);
+
   Serial.begin(115200);
 
   // INPUT, not INPUT_PULLUP: the sensor and the divider already set the levels.
@@ -678,6 +721,7 @@ void setup() {
 void loop() {
   readSerialCommands();
   maintainNetwork(millis());
+  updateLeds();
 
   // No delay(): check the clock instead, so pulses, commands and valves never wait.
   uint32_t now = millis();

@@ -64,6 +64,11 @@ const int FLOW_COUNT     = sizeof(FLOW_SENSORS) / sizeof(FLOW_SENSORS[0]);
 const int PRESSURE_COUNT = sizeof(PRESSURE_SENSORS) / sizeof(PRESSURE_SENSORS[0]);
 const int VALVE_COUNT    = sizeof(VALVES) / sizeof(VALVES[0]);
 
+// ---------------------------------------------------------------- leak indicator LEDs
+// GPIO -> 220 ohm -> LED -> GND. The leak decision comes from the backend.
+const int LED_GREEN_PIN = 23;  // on: backend says no leak
+const int LED_RED_PIN   = 13;  // on: backend says confirmed leak
+
 // ---------------------------------------------------------------- safety
 // Refuse to close the last open valve unless the command says "force"
 // (the pump would dead-head). Keep this on.

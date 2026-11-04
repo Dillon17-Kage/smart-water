@@ -52,6 +52,17 @@ SV1 (solenoid, GPIO26). The hardware brief still uses the old names F6 and P2.
 | `status` | Uptime, free heap, flow totals, valve states |
 | `json` | The readings message exactly as MQTT will send it |
 
+## Leak indicator LEDs
+
+Wiring: GPIO23 → 220 Ω → green LED → GND, and GPIO13 → 220 Ω → red LED → GND. The leak
+decision is made in the backend, which tells the node over MQTT.
+
+| Situation | Green | Red |
+|---|---|---|
+| Backend says no leak | on | off |
+| Backend says confirmed leak | off | on |
+| No MQTT connection, or no message from the backend yet | off | off |
+
 ## Valve behaviour
 
 - **Every valve opens at boot**, before anything else, so a reset with the pump running
