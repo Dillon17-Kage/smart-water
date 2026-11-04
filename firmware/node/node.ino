@@ -3,7 +3,7 @@
 // The node is "dumb" on purpose: it counts flow pulses, reads pressure volts, drives
 // valves and reports. Leak detection and calibration live in the backend.
 // Which sensors and valves this board has comes from config.h.
-// Message format: docs/mqtt-contract.md (v1.2).
+// Message format: docs/mqtt-contract.md (v1.3).
 //
 // Serial Monitor: 115200 baud, line ending "Newline". Type "help" for commands.
 
