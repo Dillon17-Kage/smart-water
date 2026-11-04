@@ -53,6 +53,8 @@ It connects, publishes `online`, then sends readings every second and status eve
   **rejected with `last_open_valve`** unless the command has `force: true`, because SV1 is
   the only valve.
 - **Duplicate commands** (same `id`) get the same ack again without acting twice.
+- **Leak indicator:** it subscribes to `indicator` and prints each message, where the real
+  node would switch its red and green LEDs.
 - **Offline:** while offline it keeps counting, so `seq` jumps and the `total` counters
   carry on when it comes back, like a real node after a Wi-Fi drop.
 

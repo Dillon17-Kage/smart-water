@@ -102,6 +102,7 @@ builder.Services.AddSingleton<RigCache>();
 builder.Services.AddSingleton<LivePush>();
 builder.Services.AddSingleton<AlertService>();
 builder.Services.AddSingleton<AuthService>();
+builder.Services.AddSingleton<LeakIndicator>();
 builder.Services.AddSingleton<LeakDetector>();
 builder.Services.AddSingleton<ValveControl>();
 builder.Services.AddSingleton<ReadingsIngestion>();

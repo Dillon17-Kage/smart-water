@@ -1,6 +1,7 @@
 using Dapper;
 using Npgsql;
 using SmartWater.Api.Alerts;
+using SmartWater.Api.Detection;
 using SmartWater.Api.Live;
 using SmartWater.Api.Mqtt;
 using SmartWater.Api.Rig;
@@ -13,7 +14,7 @@ namespace SmartWater.Api.Nodes;
 /// health.heartbeat_timeout_s (30 s) of silence, which also raises a node_offline alert.
 /// </summary>
 public sealed class NodeMonitor(NpgsqlDataSource db, RigCache rig, AlertService alerts, LivePush live,
-    ILogger<NodeMonitor> log) : BackgroundService
+    LeakIndicator indicator, ILogger<NodeMonitor> log) : BackgroundService
 {
     // Only one change of online/offline at a time, so two messages can't both raise an alert.
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -82,6 +83,7 @@ public sealed class NodeMonitor(NpgsqlDataSource db, RigCache rig, AlertService 
             {
                 log.LogInformation("{Node} is online", nodeName);
                 await alerts.ResolveForNodeAsync("node_offline", node.Id);
+                await indicator.PublishAllAsync();
             }
         }
         finally

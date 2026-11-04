@@ -34,7 +34,7 @@ public sealed class LeakEventDto
 /// While a leak is open it tracks the loss rate, peak, litres lost and pressure drop.
 /// </summary>
 public sealed class LeakDetector(NpgsqlDataSource db, RigCache rig, AlertService alerts, LivePush live,
-    ILogger<LeakDetector> log)
+    LeakIndicator indicator, ILogger<LeakDetector> log)
 {
     private const string Select = """
         SELECT id, zone_id, status, detected_at, confirmed_at, resolved_at,
@@ -153,6 +153,7 @@ public sealed class LeakDetector(NpgsqlDataSource db, RigCache rig, AlertService
             await PushAsync(connection, state.EventId!.Value);
         }
         log.LogWarning("Zone {Zone}: LEAK CONFIRMED, losing {Residual:0.00} L/min", zone.Code, residual);
+        await indicator.PublishAllAsync();
         await alerts.RaiseAsync("leak", "critical",
             $"Leak in {zone.Name}: about {residual:0.00} L/min going in that doesn't come out. Close the zone's valve to isolate it.",
             leakEventId: state.EventId);
@@ -172,6 +173,7 @@ public sealed class LeakDetector(NpgsqlDataSource db, RigCache rig, AlertService
 
     private async Task CloseAsync(ZoneState state, DateTime at, string status)
     {
+        bool wasConfirmed = state.Confirmed;
         await using var connection = await db.OpenConnectionAsync();
         await connection.ExecuteAsync(
             "UPDATE leak_events SET status = @status, resolved_at = @at, loss_rate = 0, volume_lost = @Volume WHERE id = @id",
@@ -180,6 +182,8 @@ public sealed class LeakDetector(NpgsqlDataSource db, RigCache rig, AlertService
         state.EventId = null;
         state.Confirmed = false;
         state.BelowSince = null;
+        // A false alarm was never confirmed, so the LEDs never changed for it.
+        if (wasConfirmed) await indicator.PublishAllAsync();
     }
 
     private async Task PushAsync(NpgsqlConnection connection, int id) =>

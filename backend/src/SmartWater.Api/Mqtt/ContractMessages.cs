@@ -30,6 +30,9 @@ public record CommandMessage(string Id, string Valve, string Action, bool Force)
 /// <summary>Contract §7: a node's reply to a command.</summary>
 public record AckMessage(string? Id, string? Valve, string? Result, string? State, string? Reason);
 
+/// <summary>Contract §9: whether a zone served by this node has a confirmed leak.</summary>
+public record IndicatorMessage(bool Leak);
+
 public static class ContractJson
 {
     public static readonly JsonSerializerOptions Options = new()

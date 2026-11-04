@@ -1,6 +1,6 @@
 # MQTT contract (node ↔ backend)
 
-**Version 1.2, 1 Nov 2026.** This is the shared contract between the ESP32 firmware
+**Version 1.3, 5 Nov 2026.** This is the shared contract between the ESP32 firmware
 (`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
 Both sides must match it exactly. It's written by the software session from §5.4 of
 `docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
@@ -13,7 +13,7 @@ Both sides must match it exactly. It's written by the software session from §5.
 | Node client id | `sw-node-2` (the `nodes.mqtt_client_id` column) |
 | Backend client id | `sw-backend-` + a random suffix |
 | Keep-alive | **15 s**. The broker publishes the last will about 1.5 × keep-alive after the node disappears |
-| Clean session | `true`. The node subscribes to its `cmd` topic again **after every connect** |
+| Clean session | `true`. The node subscribes to its `cmd` and `indicator` topics again **after every connect** |
 | Last will (LWT) | topic `smartwater/{node}/status`, payload `{"node":"node-2","state":"offline"}`, QoS 1, **retained** |
 
 `{node}` is the node name from the database, e.g. `node-2`. All topics are lower case.
@@ -29,6 +29,7 @@ Only one client may use a client id at a time. The simulator also connects as
 | `smartwater/{node}/status` | node → backend | 1 | **yes** | on connect, then every 10 s; the LWT on disconnect |
 | `smartwater/{node}/cmd` | backend → node | 1 | **never** | when an operator operates a valve |
 | `smartwater/{node}/ack` | node → backend | 1 | no | once for every `cmd` received |
+| `smartwater/{node}/indicator` | backend → node | 1 | **yes** | when a confirmed leak starts or ends, when the backend connects to the broker, and when a node comes online |
 
 The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
 `smartwater/+/ack`.
@@ -194,10 +195,39 @@ Rules:
 The node's check is the last line of defence. It works even if a command reaches the
 broker some other way, e.g. from an MQTT test client.
 
-## 9. Change log
+## 9. `indicator`: leak state for the node's LEDs
+
+The leak decision is made in the backend, so a node can't work it out by itself. This
+message tells it what to show.
+
+```json
+{"leak":true}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `leak` | boolean | `true` while any zone served by this node has a **confirmed** leak. A suspected leak doesn't count. Back to `false` when the leak is resolved |
+
+A node serves a zone if it has one of that zone's sensors or valves. A node with no zone
+(node-1, trunk and return only) always gets `false`.
+
+The message is **retained**, so the node gets the current state straight after it
+subscribes. If the backend misses a change because the broker was unreachable, it publishes
+the correct state again when it reconnects.
+
+| Node LEDs | When |
+|---|---|
+| Green | `leak` is `false` |
+| Red | `leak` is `true` |
+| Both off | No MQTT connection, or no `indicator` message received yet |
+
+The LEDs only report. The node never moves a valve because of this message.
+
+## 10. Change log
 
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 1 Nov 2026 | First version, from hardware brief §5.4 |
 | 1.1 | 1 Nov 2026 | Sensors renumbered along the water path: Zone A is now F2 (in), **F3** (out), **P1** (pressure). Message format unchanged |
 | 1.2 | 1 Nov 2026 | Broker moved from HiveMQ Cloud Serverless (retired, no new clusters) to EMQX Cloud Serverless. Only §1 changed: host and TLS root CA. Topics and messages unchanged |
+| 1.3 | 5 Nov 2026 | New retained `indicator` topic (backend → node) so a node can show the confirmed leak state on a red and a green LED. Existing messages unchanged |

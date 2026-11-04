@@ -1,5 +1,6 @@
 using MQTTnet;
 using MQTTnet.Protocol;
+using SmartWater.Api.Detection;
 using SmartWater.Api.Ingestion;
 using SmartWater.Api.Nodes;
 using SmartWater.Api.Valves;
@@ -61,6 +62,8 @@ public sealed class MqttConnection(IConfiguration config, IServiceProvider servi
                     await client.SubscribeAsync(subscribe.Build(), stoppingToken);
                     log.LogInformation("MQTT connected to {Host} as {ClientId}", host, options.ClientId);
                     delay = TimeSpan.FromSeconds(1);
+                    // Covers startup, and any leak change missed while the broker was unreachable.
+                    await services.GetRequiredService<LeakIndicator>().PublishAllAsync();
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
@@ -77,13 +80,14 @@ public sealed class MqttConnection(IConfiguration config, IServiceProvider servi
     }
 
     /// <summary>Publishes with QoS 1. Returns false if the broker isn't reachable right now.</summary>
-    public async Task<bool> PublishAsync(string topic, string payload)
+    public async Task<bool> PublishAsync(string topic, string payload, bool retain = false)
     {
         if (!client.IsConnected) return false;
         var message = new MqttApplicationMessageBuilder()
             .WithTopic(topic)
             .WithPayload(payload)
             .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithRetainFlag(retain)
             .Build();
         try
         {

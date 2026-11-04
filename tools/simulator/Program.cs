@@ -77,6 +77,14 @@ async Task Publish(string kind, string payload, bool retain = false)
 client.ApplicationMessageReceivedAsync += async e =>
 {
     string payload = e.ApplicationMessage.ConvertPayloadToString() ?? "";
+
+    // The real node drives its LEDs from this (contract §9). Here we just show it.
+    if (e.ApplicationMessage.Topic == topic("indicator"))
+    {
+        Log($"indicator {payload}");
+        return;
+    }
+
     CommandMessage? cmd = null;
     try { cmd = JsonSerializer.Deserialize<CommandMessage>(payload, Json.Options); }
     catch (JsonException) { /* bad JSON: answered as bad_command below */ }
@@ -97,6 +105,7 @@ async Task Connect()
     // Clean session: subscribe again after every connect (contract §1).
     await client.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
         .WithTopicFilter(f => f.WithTopic(topic("cmd")).WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+        .WithTopicFilter(f => f.WithTopic(topic("indicator")).WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
         .Build());
     // Replace the retained "offline" will straight away (contract §5).
     await Publish("status", Json.Write(node.Status()), retain: true);
