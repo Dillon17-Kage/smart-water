@@ -54,7 +54,8 @@ resistor values (`DIVIDER_R_TOP`, `DIVIDER_R_BOTTOM`). The updated schematic is
 | Inlet pressure | P1 | GPIO32 (ADC1) | signal → 12k → pin; 22k and 100 nF pin → GND |
 | Solenoid | SV1 | GPIO26 | GPIO26 → relay module CH1. Module VCC → 5 V, GND and RGND → GND. +12 V → relay COM; relay **NC** → solenoid → PSU V−; 1N4007 across the solenoid. PSU V− joined to ESP32 GND |
 
-The schematic image still shows the original MOSFET driver for SV1.
+The as-built schematic with the relay is `firmware/zoneA-schematic-relay.png`.
+`firmware/zoneA-schematic-e12.png` shows the earlier MOSFET driver.
 
 Sensor codes follow `docs/mqtt-contract.md` v1.1 (Zone A = F2, F3, P1, SV1). The hardware
 brief still uses the older names (F6, P2).
