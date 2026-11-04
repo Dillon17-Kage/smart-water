@@ -8,7 +8,8 @@
 
 // ---------------------------------------------------------------- identity
 #define NODE_ID     "node-2"
-#define FW_VERSION  "0.1.0"
+#define FW_VERSION  "0.2.0"
+#define MQTT_CLIENT_ID "sw-" NODE_ID  // must match nodes.mqtt_client_id in the database
 
 // ---------------------------------------------------------------- hardware tables
 enum FlowRole  { FLOW_IN, FLOW_OUT };
@@ -73,6 +74,19 @@ const uint32_t READINGS_INTERVAL_MS = 1000;  // one readings message per second
 const uint32_t PRESSURE_SAMPLE_MS   = 50;    // take a pressure burst this often in the window
 const int      PRESSURE_BURST       = 8;     // ADC reads per burst (about 160 per window)
 const uint32_t MIN_PULSE_GAP_US     = 1000;  // closer pulses are noise (real max ~600 Hz)
+
+// ---------------------------------------------------------------- network
+const uint32_t STATUS_INTERVAL_MS  = 10000;  // the database's heartbeat timeout is 30 s
+const int      MQTT_KEEPALIVE_S    = 15;     // contract section 1
+const int      MQTT_TIMEOUT_MS     = 5000;   // how long to wait for the broker's reply
+const uint32_t WIFI_RETRY_MS       = 20000;
+const uint32_t MQTT_RETRY_MIN_MS   = 2000;   // back-off: doubles after each failed attempt
+const uint32_t MQTT_RETRY_MAX_MS   = 30000;
+const int      TLS_HANDSHAKE_S     = 15;
+const int      WATCHDOG_TIMEOUT_S  = 30;     // longer than a slow TLS connection attempt
+
+// Debug only: skips checking the broker's certificate. Leave this false.
+const bool MQTT_INSECURE_TLS_DEBUG = false;
 
 // ---------------------------------------------------------------- measuring
 // Divider in front of each sensor pin (E12 values): 12k from the sensor, 22k to GND.

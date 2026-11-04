@@ -1,15 +1,23 @@
-// Smart Water - node firmware (build step 2: measuring, serial output and serial
-// valve commands; no network yet).
+// Smart Water - node firmware: measuring, serial commands, Wi-Fi and MQTT over TLS.
 //
 // The node is "dumb" on purpose: it counts flow pulses, reads pressure volts, drives
 // valves and reports. Leak detection and calibration live in the backend.
 // Which sensors and valves this board has comes from config.h.
-// Message format: docs/mqtt-contract.md (v1.1).
+// Message format: docs/mqtt-contract.md (v1.2).
 //
 // Serial Monitor: 115200 baud, line ending "Newline". Type "help" for commands.
 
 #include <stdarg.h>
+#include <sys/time.h>
+#include <time.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <MQTT.h>         // library "MQTT" by Joel Gaehwiler (256dpi)
+#include <ArduinoJson.h>  // library "ArduinoJson" by Benoit Blanchon
+#include <esp_task_wdt.h>
 #include "config.h"
+#include "secrets.h"      // copy secrets.example.h to secrets.h and fill it in
+#include "ca_cert.h"
 
 // Result of a valve command. The rejections match the "reason" codes of the MQTT ack
 // (contract section 7). Declared up here because the Arduino IDE puts its generated
@@ -49,9 +57,10 @@ uint32_t readFlowTotal(int i) {
 
 // ================================================================ readings
 // One "window" is about a second. At its end we freeze the numbers into `latest`,
-// which the serial line (and, from step 3, the MQTT message) are made from.
+// which the serial line and the MQTT message are made from.
 struct Reading {
   uint32_t seq;                      // goes up by 1 per window, starts at 0 at boot
+  char     ts[32];                   // end of the window, UTC; empty until NTP has synced
   uint32_t intervalMs;               // measured window length
   uint32_t pulses[FLOW_COUNT];       // pulses in this window
   uint32_t totals[FLOW_COUNT];       // cumulative pulses at the end of the window
@@ -79,9 +88,28 @@ void samplePressure() {
   pressureSampleCount += PRESSURE_BURST;
 }
 
+// The clock starts near 1970 until NTP sets it, so a date this recent means it's synced.
+bool clockIsSynced() {
+  return time(nullptr) > 1700000000;
+}
+
+// Writes e.g. 2026-10-28T09:15:02.004Z, or an empty string if NTP hasn't synced yet.
+void formatTimestamp(char *buf, size_t size) {
+  buf[0] = '\0';
+  if (!clockIsSynced()) return;
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  struct tm utc;
+  gmtime_r(&tv.tv_sec, &utc);
+  char seconds[24];
+  strftime(seconds, sizeof(seconds), "%Y-%m-%dT%H:%M:%S", &utc);
+  snprintf(buf, size, "%s.%03dZ", seconds, (int)(tv.tv_usec / 1000));
+}
+
 void finishWindow(uint32_t now) {
   latest.seq = nextSeq++;
   latest.intervalMs = now - windowStartMs;
+  formatTimestamp(latest.ts, sizeof(latest.ts));
 
   for (int i = 0; i < FLOW_COUNT; i++) {
     uint32_t total = readFlowTotal(i);
@@ -177,11 +205,15 @@ bool appendf(char *buf, size_t size, size_t &used, const char *fmt, ...) {
 }
 
 // Builds the "readings" payload exactly as in docs/mqtt-contract.md section 4.
-// "ts" is left out until NTP is added (step 3); the backend then uses its receive time.
+// "ts" is left out until NTP has synced; the backend then uses its receive time.
 bool buildReadingsJson(char *buf, size_t size) {
   size_t used = 0;
-  bool ok = appendf(buf, size, used, "{\"node\":\"%s\",\"seq\":%lu,\"interval_ms\":%lu,\"flow\":[",
-                    NODE_ID, (unsigned long)latest.seq, (unsigned long)latest.intervalMs);
+  bool ok = appendf(buf, size, used, "{\"node\":\"%s\",\"seq\":%lu,",
+                    NODE_ID, (unsigned long)latest.seq);
+  if (latest.ts[0] != '\0') {
+    ok &= appendf(buf, size, used, "\"ts\":\"%s\",", latest.ts);
+  }
+  ok &= appendf(buf, size, used, "\"interval_ms\":%lu,\"flow\":[", (unsigned long)latest.intervalMs);
   for (int i = 0; i < FLOW_COUNT; i++) {
     ok &= appendf(buf, size, used, "%s{\"sensor\":\"%s\",\"pulses\":%lu,\"total\":%lu}",
                   i > 0 ? "," : "", FLOW_SENSORS[i].code,
@@ -201,6 +233,231 @@ bool buildReadingsJson(char *buf, size_t size) {
   return ok;
 }
 
+// ================================================================ network
+// Everything here retries by itself. Pulse counting and valve state carry on regardless,
+// and a valve never changes because Wi-Fi or the broker went away.
+WiFiClientSecure tlsClient;
+MQTTClient mqtt(1024);  // read and write buffers; payloads are under 1024 bytes
+
+char readingsTopic[48];
+char statusTopic[48];
+char cmdTopic[48];
+char ackTopic[48];
+
+bool wifiWasUp = false;
+bool mqttWasUp = false;
+uint32_t lastWifiAttemptMs = 0;
+uint32_t lastMqttAttemptMs = 0;
+uint32_t mqttRetryDelayMs = MQTT_RETRY_MIN_MS;
+uint32_t lastStatusMs = 0;
+
+// Commands wait here until loop() handles them, because the MQTT library says not to
+// publish from inside its message callback, and every command needs an ack.
+const int CMD_QUEUE_SIZE = 4;
+char cmdQueue[CMD_QUEUE_SIZE][256];
+int cmdQueueCount = 0;
+
+// QoS 1 can deliver a command twice: remember the last 10 ids and their acks, so a
+// repeat gets the same ack and the valve isn't operated twice.
+const int REMEMBERED_ACKS = 10;
+char rememberedIds[REMEMBERED_ACKS][48];
+char rememberedAcks[REMEMBERED_ACKS][220];
+int nextRememberedAck = 0;
+
+void onMqttMessage(String &topic, String &payload) {
+  if (cmdQueueCount >= CMD_QUEUE_SIZE) {
+    Serial.println("> MQTT: command queue full, command dropped");
+    return;
+  }
+  strlcpy(cmdQueue[cmdQueueCount], payload.c_str(), sizeof(cmdQueue[0]));
+  cmdQueueCount++;
+}
+
+void handleMqttCommand(const char *payload) {
+  JsonDocument command;
+  DeserializationError parseError = deserializeJson(command, payload);
+  const char *id = command["id"] | "";
+  const char *valve = command["valve"] | "";
+  const char *action = command["action"] | "";
+  bool force = command["force"] | false;
+
+  bool idUsable = strlen(id) > 0 && strlen(id) < sizeof(rememberedIds[0]);
+  if (idUsable) {
+    for (int i = 0; i < REMEMBERED_ACKS; i++) {
+      if (strcmp(rememberedIds[i], id) == 0) {
+        mqtt.publish(ackTopic, rememberedAcks[i], false, 1);
+        Serial.printf("> MQTT: repeated command %s, same ack sent again\n", id);
+        return;
+      }
+    }
+  }
+
+  bool isOpen = strcmp(action, "open") == 0;
+  bool isClose = strcmp(action, "close") == 0;
+  const char *reason = nullptr;
+
+  if (parseError || !idUsable || (!isOpen && !isClose)) {
+    reason = "bad_command";
+  } else {
+    ValveResult result = commandValve(valve, isOpen, force);
+    if (result == VALVE_UNKNOWN) reason = "unknown_valve";
+    if (result == VALVE_LAST_OPEN) reason = "last_open_valve";
+  }
+
+  int v = findValve(valve);
+  JsonDocument ack;
+  ack["id"] = id;
+  ack["valve"] = valve;
+  ack["result"] = reason ? "rejected" : "done";
+  ack["state"] = v < 0 ? "unknown" : (valveOpen[v] ? "open" : "closed");
+  if (reason) ack["reason"] = reason;
+  else ack["reason"] = nullptr;
+
+  char ackJson[220];
+  serializeJson(ack, ackJson, sizeof(ackJson));
+  mqtt.publish(ackTopic, ackJson, false, 1);
+  Serial.printf("> MQTT command: %s %s -> %s\n", action, valve, ackJson);
+
+  if (idUsable) {
+    strlcpy(rememberedIds[nextRememberedAck], id, sizeof(rememberedIds[0]));
+    strlcpy(rememberedAcks[nextRememberedAck], ackJson, sizeof(rememberedAcks[0]));
+    nextRememberedAck = (nextRememberedAck + 1) % REMEMBERED_ACKS;
+  }
+}
+
+void handleQueuedCommands() {
+  for (int i = 0; i < cmdQueueCount; i++) {
+    handleMqttCommand(cmdQueue[i]);
+  }
+  cmdQueueCount = 0;
+}
+
+void publishStatus() {
+  JsonDocument status;
+  status["node"] = NODE_ID;
+  status["state"] = "online";
+  status["fw"] = FW_VERSION;
+  status["mac"] = WiFi.macAddress();
+  status["ip"] = WiFi.localIP().toString();
+  status["rssi"] = WiFi.RSSI();
+  status["uptime_s"] = millis() / 1000;
+  status["heap"] = ESP.getFreeHeap();
+  status["ntp"] = clockIsSynced();
+
+  char json[256];
+  serializeJson(status, json, sizeof(json));
+  mqtt.publish(statusTopic, json, true, 1);
+  lastStatusMs = millis();
+}
+
+void publishReadings() {
+  char json[1024];
+  if (!buildReadingsJson(json, sizeof(json))) {
+    Serial.println("> readings message too big, not sent");
+    return;
+  }
+  // QoS 0: it doesn't wait for the broker, and a lost message loses no volume because
+  // every message carries the cumulative totals.
+  mqtt.publish(readingsTopic, json, false, 0);
+}
+
+void setupNetwork() {
+  snprintf(readingsTopic, sizeof(readingsTopic), "smartwater/%s/readings", NODE_ID);
+  snprintf(statusTopic, sizeof(statusTopic), "smartwater/%s/status", NODE_ID);
+  snprintf(cmdTopic, sizeof(cmdTopic), "smartwater/%s/cmd", NODE_ID);
+  snprintf(ackTopic, sizeof(ackTopic), "smartwater/%s/ack", NODE_ID);
+
+  if (MQTT_INSECURE_TLS_DEBUG) {
+    tlsClient.setInsecure();
+    Serial.println("WARNING: broker certificate NOT checked (debug flag in config.h)");
+  } else {
+    tlsClient.setCACert(MQTT_ROOT_CA);
+  }
+  tlsClient.setHandshakeTimeout(TLS_HANDSHAKE_S);
+
+  mqtt.begin(MQTT_HOST, MQTT_PORT, tlsClient);
+  mqtt.onMessage(onMqttMessage);
+  mqtt.setKeepAlive(MQTT_KEEPALIVE_S);
+  mqtt.setCleanSession(true);
+  mqtt.setTimeout(MQTT_TIMEOUT_MS);
+
+  // The broker publishes this for us if the node disappears.
+  char offlineJson[64];
+  snprintf(offlineJson, sizeof(offlineJson), "{\"node\":\"%s\",\"state\":\"offline\"}", NODE_ID);
+  mqtt.setWill(statusTopic, offlineJson, true, 1);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);  // so valve commands aren't delayed by Wi-Fi power saving
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  lastWifiAttemptMs = millis();
+  Serial.printf("Wi-Fi: connecting to %s\n", WIFI_SSID);
+}
+
+void connectMqtt() {
+  Serial.printf("MQTT: connecting to %s\n", MQTT_HOST);
+  // This can take a few seconds while TLS sets up. Pulses are still counted by the
+  // interrupts, and the next window's interval_ms covers the extra time.
+  if (mqtt.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS)) {
+    Serial.println("MQTT: connected");
+    mqttWasUp = true;
+    mqttRetryDelayMs = MQTT_RETRY_MIN_MS;
+    mqtt.subscribe(cmdTopic, 1);  // clean session: subscribe again after every connect
+    publishStatus();              // replaces the retained "offline" straight away
+  } else {
+    Serial.printf("MQTT: failed (error %d, broker code %d), retrying in %lu s\n",
+                  (int)mqtt.lastError(), (int)mqtt.returnCode(),
+                  (unsigned long)(mqttRetryDelayMs / 1000));
+    mqttRetryDelayMs = min(mqttRetryDelayMs * 2, MQTT_RETRY_MAX_MS);
+  }
+  lastMqttAttemptMs = millis();
+}
+
+void maintainNetwork(uint32_t now) {
+  if (WiFi.status() != WL_CONNECTED) {
+    if (wifiWasUp) {
+      Serial.println("Wi-Fi: lost");
+      wifiWasUp = false;
+    }
+    if (mqttWasUp) {
+      Serial.println("MQTT: disconnected");
+      mqttWasUp = false;
+    }
+    if (now - lastWifiAttemptMs >= WIFI_RETRY_MS) {
+      Serial.println("Wi-Fi: trying again");
+      WiFi.disconnect();
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
+      lastWifiAttemptMs = now;
+    }
+    return;
+  }
+
+  if (!wifiWasUp) {
+    wifiWasUp = true;
+    Serial.printf("Wi-Fi: connected, IP %s, signal %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC; syncs in the background
+    mqttRetryDelayMs = 0;  // connect straight away
+  }
+
+  if (mqtt.connected()) {
+    mqtt.loop();
+    handleQueuedCommands();
+    if (now - lastStatusMs >= STATUS_INTERVAL_MS) publishStatus();
+    return;
+  }
+
+  if (mqttWasUp) {
+    Serial.println("MQTT: disconnected");
+    mqttWasUp = false;
+    mqttRetryDelayMs = MQTT_RETRY_MIN_MS;
+    lastMqttAttemptMs = now;
+  }
+  if (now - lastMqttAttemptMs >= mqttRetryDelayMs) {
+    if (mqttRetryDelayMs == 0) mqttRetryDelayMs = MQTT_RETRY_MIN_MS;
+    connectMqtt();
+  }
+}
+
 // ================================================================ serial output
 void printReadingLine() {
   // e.g. F2 0.67 L/min | F3 0.66 L/min | P1 0.85 V ~ 60 kPa | SV1 open | MQTT off
@@ -215,7 +472,7 @@ void printReadingLine() {
   for (int v = 0; v < VALVE_COUNT; v++) {
     Serial.printf("%s %s | ", VALVES[v].code, valveOpen[v] ? "open" : "closed");
   }
-  Serial.println("MQTT off");
+  Serial.println(mqtt.connected() ? "MQTT ok" : "MQTT off");
 }
 
 // ================================================================ calibration window
@@ -289,7 +546,15 @@ void printStatus() {
                   valveOpen[v] ? "open" : "closed");
   }
   Serial.printf("  last-open-valve protection: %s\n", LAST_OPEN_VALVE_PROTECTION ? "on" : "off");
-  Serial.println("  Wi-Fi / MQTT: not in this build yet");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("  Wi-Fi: %s, IP %s, signal %d dBm\n", WIFI_SSID,
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  } else {
+    Serial.printf("  Wi-Fi: not connected (trying %s)\n", WIFI_SSID);
+  }
+  Serial.printf("  MQTT: %s, client id %s\n", mqtt.connected() ? "connected" : "not connected",
+                MQTT_CLIENT_ID);
+  Serial.printf("  clock: %s\n", clockIsSynced() ? "synced (NTP)" : "not synced yet");
 }
 
 void handleValveCommand(const char *code, bool open, bool force) {
@@ -391,7 +656,12 @@ void setup() {
     analogSetPinAttenuation(PRESSURE_SENSORS[p].pin, ADC_11db);  // up to ~3.1 V at the pin
   }
 
-  // Restart the board if loop() ever gets stuck for more than a few seconds.
+  // Restart the board if loop() ever gets stuck. The limit is longer than the default
+  // because connecting to the broker over TLS can legitimately take several seconds.
+  esp_task_wdt_config_t watchdog = {};
+  watchdog.timeout_ms = WATCHDOG_TIMEOUT_S * 1000;
+  watchdog.trigger_panic = true;
+  if (esp_task_wdt_reconfigure(&watchdog) != ESP_OK) esp_task_wdt_init(&watchdog);
   enableLoopWDT();
 
   windowStartMs = millis();
@@ -401,10 +671,13 @@ void setup() {
   Serial.printf("Smart Water node %s, firmware %s. All valves opened at boot.\n",
                 NODE_ID, FW_VERSION);
   printHelp();
+
+  setupNetwork();
 }
 
 void loop() {
   readSerialCommands();
+  maintainNetwork(millis());
 
   // No delay(): check the clock instead, so pulses, commands and valves never wait.
   uint32_t now = millis();
@@ -416,5 +689,6 @@ void loop() {
     samplePressure();  // make sure every window has at least one burst
     finishWindow(now);
     printReadingLine();
+    if (mqtt.connected()) publishReadings();
   }
 }

@@ -2,7 +2,8 @@
 
 Phase 1: one sketch for every ESP32 node; each board differs only in `config.h`.
 Wi-Fi and MQTT passwords go in `node/secrets.h`, which Git ignores
-(copy `secrets.example.h` to start; added with the network code in build step 3).
+(copy `secrets.example.h` to start). The Wi-Fi network must be 2.4 GHz; on a phone hotspot,
+turn on "maximise compatibility" or choose the 2.4 GHz band.
 
 | Folder | What it is |
 |---|---|
@@ -21,6 +22,8 @@ SV1 (solenoid, GPIO26). The hardware brief still uses the old names F6 and P2.
    Not "Arduino ESP32 Boards", which is a different package for Arduino's own boards.
 3. **Tools → Board → esp32 → ESP32 Dev Module.** Port: the "USB-SERIAL CH340" COM port.
    Leave the other Tools settings at their defaults.
+4. **Tools → Manage Libraries:** install **MQTT** by Joel Gaehwiler (256dpi) and
+   **ArduinoJson** by Benoit Blanchon. Only `node/` needs them.
 
 ## Flashing
 

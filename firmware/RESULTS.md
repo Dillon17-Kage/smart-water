@@ -136,6 +136,25 @@ the valve stays open, so the pump can't dead-head. The firmware setting for this
 `LOW_ENERGISES` in `config.h` (`SV1_LOW_ENERGISES` in the bring-up sketch).
 Switching the actual solenoid through the relay is **not yet tested**.
 
+### 4.5 Water test: pump running, Zone A loop
+
+Bring-up sketch, 19 consecutive one-second lines. SV1 reported open throughout.
+
+| Measurement | Result |
+|---|---|
+| F2 (inlet) | 1625 pulses over 18 windows, about 90.3 pulses/s (0.92 L/min at the default k-factor) |
+| F3 (outlet) | 1601 pulses over 18 windows, about 88.9 pulses/s (0.91 L/min at the default k-factor) |
+| F3 / F2 pulse ratio | 0.985, a 1.5% difference |
+| P1 at the pin | 378–388 mV, sensor about 0.59 V |
+| P1 above the 0.38 V zero | about 0.21 V, roughly 36 kPa (the serial line's 16 kPa assumes a 0.5 V zero) |
+
+The readings were steady, so water flows through the whole loop and all three sensors
+work under real flow. The default k-factor has not been checked against a measured
+volume (jug test), so the L/min figures are not yet calibrated. These values do not
+replace `cal start` / `cal stop` or `zero P1`. During the same work, the ESP32's VIN and
+GND were found swapped on the breadboard, which had put reverse polarity on the rails
+and pulled P1's pin to 3160 mV; these results were taken after correcting that.
+
 ## 5. Open problems and how to fix them
 
 ### 5.1 Valve driver
@@ -174,6 +193,11 @@ the report's discussion. Any of these fixes it; only the first needs no firmware
   jug test. Store the results in the database, not the firmware.
 
 ## 6. Firmware written
+
+**Added since section 5 was written, compiled but not yet tested on the board:** Wi-Fi with
+retry, MQTT over TLS to EMQX (certificate checked against DigiCert Global Root G2), NTP
+timestamps, readings every second, status every 10 s with a retained last will, and valve
+commands with acknowledgements and duplicate handling, per `docs/mqtt-contract.md` v1.2.
 
 ### `bringup/bringup.ino` (step 1, on the board now)
 
