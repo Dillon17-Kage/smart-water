@@ -204,9 +204,11 @@ duplicate handling, per `docs/mqtt-contract.md` v1.2.
 
 **Tested so far:** an earlier build of `node.ino` was flashed. It joined a phone hotspot and connected to EMQX
 over TLS with the `node-2` login. The connection dropped once after about 20 s for an
-unknown reason, reconnected by itself, then stayed up for a 90 s watch. **Not yet tested:**
-whether messages arrive at the backend and web app, valve commands and acks over MQTT, and
-the last will.
+unknown reason, reconnected by itself, then stayed up for a 90 s watch. The software session
+reports the backend, running on EMQX, sees node-2 online and stores F2/F3. P1 readings were
+first rejected as out of range, so it set P1's offset to 0.38 V and its lower limit to
+-50 kPa in the database. **Not yet tested:** the web app with the real node, valve commands
+and acks over MQTT, and the last will.
 
 ### `bringup/bringup.ino` (step 1, on the board now)
 
