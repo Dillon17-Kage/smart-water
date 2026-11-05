@@ -1,6 +1,6 @@
 # Node simulator (fake node-2)
 
-A .NET console app that pretends to be node-2 with Zone A (F2, F3, P1, SV1). It talks to
+A .NET console app that pretends to be node-2 with F1, F8 and Zone A (F2, F3, P1, SV1). It talks to
 the broker **exactly like the ESP32 firmware** (`docs/mqtt-contract.md`), so the backend
 and web app can be tested and demonstrated without the rig.
 

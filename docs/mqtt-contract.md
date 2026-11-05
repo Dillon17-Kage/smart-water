@@ -1,6 +1,6 @@
 # MQTT contract (node ↔ backend)
 
-**Version 1.3, 5 Nov 2026.** This is the shared contract between the ESP32 firmware
+**Version 1.4, 5 Nov 2026.** This is the shared contract between the ESP32 firmware
 (`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
 Both sides must match it exactly. It's written by the software session from §5.4 of
 `docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
@@ -43,13 +43,13 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
 
   | Where | Flow in | Flow out | Pressure | Valve | Node | GPIO (in / out / pressure / valve) |
   |---|---|---|---|---|---|---|
-  | Trunk | `F1` | | | | node-1 | 18 |
+  | Trunk | `F1` | | | | node-2 | 4 |
   | Zone A | `F2` | `F3` | `P1` | `SV1` | node-2 | 18 / 19 / 32 / 26 |
   | Zone B | `F4` | `F5` | `P2` | `SV2` | node-2 | 16 / 17 / 33 / 25 |
   | Zone C | `F6` | `F7` | `P3` | `SV3` | node-3 | 21 / 22 / 34 / 27 |
-  | Return | | `F8` | | | node-1 | 19 |
+  | Return | | `F8` | | | node-2 | 14 |
 
-  Today only Zone A exists. This **replaces the design document's numbering**
+  The rig being built now has F1, F8 and Zone A, all on node-2. There is no node-1. This **replaces the design document's numbering**
   (F2/F6/P2 for Zone A) that the hardware brief still uses.
 - **The receiver ignores keys it doesn't know.** Fields can be added later without
   breaking the other side. Renaming or removing a field is a contract change.
@@ -86,12 +86,12 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
 | `flow[].pulses` | integer ≥ 0 | Pulses counted in this window |
 | `flow[].total` | integer ≥ 0 | Cumulative pulses since boot. Never reset while running; starts again from 0 after a reboot |
 | `pressure[].sensor` | string | Pressure sensor code |
-| `pressure[].mv` | integer | **Sensor** voltage in millivolts, with the resistor divider already undone (pin mV × 1.5), averaged over the window |
+| `pressure[].mv` | integer | **Sensor** voltage in millivolts, with the resistor divider already undone (12k/22k, so pin mV × 34/22), averaged over the window |
 | `valves[].valve` | string | Valve code |
 | `valves[].state` | string | `open` or `closed`: the state the node is driving the valve to |
 
 The arrays list every sensor and valve **configured on that node**. An empty array is
-allowed (e.g. node-1 has no valves).
+allowed.
 
 **How the backend converts** (calibration comes from the `sensors` table, so recalibrating
 never needs a reflash):
@@ -209,7 +209,7 @@ message tells it what to show.
 | `leak` | boolean | `true` while any zone served by this node has a **confirmed** leak. A suspected leak doesn't count. Back to `false` when the leak is resolved |
 
 A node serves a zone if it has one of that zone's sensors or valves. A node with no zone
-(node-1, trunk and return only) always gets `false`.
+always gets `false`. F1 and F8 have no zone, so they don't affect this.
 
 The message is **retained**, so the node gets the current state straight after it
 subscribes. If the backend misses a change because the broker was unreachable, it publishes
@@ -231,3 +231,4 @@ The LEDs only report. The node never moves a valve because of this message.
 | 1.1 | 1 Nov 2026 | Sensors renumbered along the water path: Zone A is now F2 (in), **F3** (out), **P1** (pressure). Message format unchanged |
 | 1.2 | 1 Nov 2026 | Broker moved from HiveMQ Cloud Serverless (retired, no new clusters) to EMQX Cloud Serverless. Only §1 changed: host and TLS root CA. Topics and messages unchanged |
 | 1.3 | 5 Nov 2026 | New retained `indicator` topic (backend → node) so a node can show the confirmed leak state on a red and a green LED. Existing messages unchanged |
+| 1.4 | 5 Nov 2026 | F1 and F8 moved from node-1 to node-2 (GPIO 4 and 14). There is no node-1 on the rig being built. Pressure divider corrected to 12k/22k (pin mV × 34/22). Message format unchanged |

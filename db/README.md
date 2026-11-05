@@ -6,7 +6,7 @@
 | `002_seed.sql` | Roles, zones, settings and the hardware **as built now**: Zone A on node-2 (F2 GPIO18, F3 GPIO19, P1 GPIO32, SV1 GPIO26) |
 | `rig/10_zone_b.sql` | Adds Zone B to node-2 (F4, F5, P2, SV2) |
 | `rig/20_zone_c.sql` | Adds node-3 and Zone C (F6, F7, P3, SV3) |
-| `rig/30_trunk_return.sql` | Adds node-1 at the tank (F1, F8). No trunk/return pressure sensors |
+| `rig/30_trunk_return.sql` | Adds F1 and F8 to node-2. No trunk/return pressure sensors |
 | `tools/reset_demo_data.sql` | Clears readings, leaks, alerts and commands before a presentation |
 | `tests/test_current_rig.sql` | Simulated 0.4 L/min leak in Zone A on the current rig; rolls back |
 | `tests/test_full_rig.sql` | Simulated 0.8 L/min leak in Zone B on the full rig, plus constraint checks; rolls back |
@@ -16,11 +16,11 @@ numbering):
 
 | Where | Flow in | Flow out | Pressure | Valve |
 |---|---|---|---|---|
-| Trunk (main line, node-1) | F1 | | | |
+| Trunk (main line, node-2) | F1 | | | |
 | Zone A | F2 | F3 | P1 | SV1 |
 | Zone B | F4 | F5 | P2 | SV2 |
 | Zone C | F6 | F7 | P3 | SV3 |
-| Return (node-1) | | F8 | | |
+| Return (node-2) | | F8 | | |
 
 There are no trunk or return pressure sensors; the schema still allows them.
 Pins follow `docs/hardware-brief.md` section 3.

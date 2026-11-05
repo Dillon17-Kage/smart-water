@@ -1,22 +1,21 @@
--- Adds node-1 at the tank: whole-network reconciliation (F1 vs F8).
---   F1  trunk flow       GPIO 18
---   F8  return flow      GPIO 19
+-- Adds the trunk and return flow sensors to node-2, for whole-network
+-- reconciliation (F1 vs F8):
+--   F1  trunk flow       GPIO 4
+--   F8  return flow      GPIO 14
+-- These match firmware/node/config.h. They were planned for a separate node-1 at
+-- the tank, but sit on node-2 with Zone A on the rig as built.
 -- There are no trunk or return pressure sensors: the rig has only the three
 -- zone inlet sensors P1-P3. The schema still allows them, so one can be added
 -- later with the same INSERT as P1, position 'trunk' or 'return' and code P4.
--- Replace the placeholder MAC with WiFi.macAddress() from the board.
 
 BEGIN;
-
-INSERT INTO nodes (name, mac_address, mqtt_client_id) VALUES
-    ('node-1', '02:00:00:00:00:01', 'sw-node-1');
 
 INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_factor, min_valid, max_valid)
 SELECT v.code, n.id, NULL, 'flow', v.position, 'L/min', v.pin, 98, 0, 10
 FROM (VALUES
-    ('F1', 'trunk',  18),
-    ('F8', 'return', 19)
+    ('F1', 'trunk',  4),
+    ('F8', 'return', 14)
 ) AS v(code, position, pin)
-JOIN nodes n ON n.name = 'node-1';
+JOIN nodes n ON n.name = 'node-2';
 
 COMMIT;

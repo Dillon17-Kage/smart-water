@@ -16,7 +16,7 @@
 -- As the rig grows, run the scripts in db/rig/ (data only, no schema change):
 --   rig/10_zone_b.sql        Zone B on node-2: F4, F5, P2, SV2
 --   rig/20_zone_c.sql        Zone C on node-3: F6, F7, P3, SV3
---   rig/30_trunk_return.sql  node-1 at the tank: F1, F8 (no trunk/return pressure)
+--   rig/30_trunk_return.sql  F1, F8 on node-2 (no trunk/return pressure)
 --
 -- !! Check before connecting the real rig !!
 --   * node MAC addresses are placeholders: replace with WiFi.macAddress()
@@ -73,7 +73,7 @@ INSERT INTO settings (key, value, description) VALUES
     ('detection.clear_period_s', '10',
      'Residual must stay below threshold this long before a leak is resolved'),
     ('detection.network_threshold_lpm', '0.4',
-     'Trunk (F1) minus return (F8) above this counts as network-level loss, L/min. Used once node-1 is fitted'),
+     'Trunk (F1) minus return (F8) above this counts as network-level loss, L/min. Used once F1 and F8 are fitted'),
     ('health.heartbeat_timeout_s', '30',
      'Node marked offline after this long with no message'),
     ('valve.confirm_timeout_s', '5',

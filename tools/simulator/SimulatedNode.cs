@@ -1,5 +1,5 @@
-// A pretend node-2 with Zone A: F2 (inlet flow), F3 (outlet flow), P1 (inlet
-// pressure) and SV1 (normally closed solenoid). It behaves like the firmware
+// A pretend node-2 with F1 (trunk flow), F8 (return flow) and Zone A: F2 (inlet flow),
+// F3 (outlet flow), P1 (inlet pressure) and SV1 (normally closed solenoid). It behaves like the firmware
 // described in docs/mqtt-contract.md, but makes up the water physics.
 //
 // This class has no MQTT code: it builds the messages and handles commands,
@@ -21,6 +21,8 @@ public class SimulatedNode
     public string Name { get; }
     public string FlowIn { get; } = "F2";
     public string FlowOut { get; } = "F3";
+    public string FlowTrunk { get; } = "F1";
+    public string FlowReturn { get; } = "F8";
     public string PressureIn { get; } = "P1";
     public string Valve { get; } = "SV1";
 
@@ -36,8 +38,8 @@ public class SimulatedNode
     // The firmware opens every valve at boot (brief §5.5), so SV1 starts open.
     public bool ValveOpen { get; private set; } = true;
     long seq;
-    long totalIn, totalOut;
-    double carryIn, carryOut;   // fractions of a pulse left over from the last window
+    long totalIn, totalOut, totalTrunk, totalReturn;
+    double carryIn, carryOut, carryTrunk, carryReturn;   // fractions of a pulse left over from the last window
     readonly DateTime bootedAt = DateTime.UtcNow;
     readonly Random random = new();
 
@@ -79,6 +81,14 @@ public class SimulatedNode
         totalIn += pulsesIn;
         totalOut += pulsesOut;
 
+        // Zone A is the only zone, so the trunk carries what enters it and the return
+        // carries what leaves it. Each sensor has its own noise.
+        var (trueIn, trueOut, _) = TrueValues();
+        long pulsesTrunk = CountPulses(trueIn * (1 + Noise(0.01)), seconds, ref carryTrunk);
+        long pulsesReturn = CountPulses(trueOut * (1 + Noise(0.01)), seconds, ref carryReturn);
+        totalTrunk += pulsesTrunk;
+        totalReturn += pulsesReturn;
+
         // The firmware sends the sensor's own voltage in mV (contract §4).
         double volts = PressureOffsetV + Math.Max(0, kpa + Noise(0.5)) / PressureScaleKpaPerV;
 
@@ -87,7 +97,13 @@ public class SimulatedNode
             Seq: seq++,
             Ts: SendTimestamps ? DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'") : null,
             IntervalMs: intervalMs,
-            Flow: [new(FlowIn, pulsesIn, totalIn), new(FlowOut, pulsesOut, totalOut)],
+            Flow:
+            [
+                new(FlowTrunk, pulsesTrunk, totalTrunk),
+                new(FlowIn, pulsesIn, totalIn),
+                new(FlowOut, pulsesOut, totalOut),
+                new(FlowReturn, pulsesReturn, totalReturn),
+            ],
             Pressure: [new(PressureIn, (int)Math.Round(volts * 1000))],
             Valves: [new(Valve, ValveState)]);
     }
