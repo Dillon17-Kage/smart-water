@@ -199,8 +199,10 @@ checked against DigiCert Global Root G2), NTP timestamps, readings every second,
 every 10 s with a retained last will, and valve commands with acknowledgements and
 duplicate handling, per `docs/mqtt-contract.md` v1.2.
 
-**Added later, not yet tested on the board:** trunk flow F1 (GPIO4) and return flow F8
-(GPIO14) on node-2, and the leak indicator LEDs (GPIO23 green, GPIO13 red).
+**Added later:** trunk flow F1 (GPIO4) and return flow F8 (GPIO14) on node-2, and the leak
+indicator LEDs (GPIO23 green, GPIO13 red). This build is flashed and connected to EMQX, and
+it received `{"leak":false}` from the backend. It was run with no sensors or LEDs wired, so
+the sensors, the LEDs themselves and the red (leak) state are **not yet tested**.
 
 **Tested so far:** an earlier build of `node.ino` was flashed. It joined a phone hotspot and connected to EMQX
 over TLS with the `node-2` login. The connection dropped once after about 20 s for an
