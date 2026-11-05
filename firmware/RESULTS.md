@@ -207,9 +207,11 @@ the sensors, the LEDs themselves and the red (leak) state are **not yet tested**
 **Tested so far:** an earlier build of `node.ino` was flashed. It joined a phone hotspot and connected to EMQX
 over TLS with the `node-2` login. The connection dropped once after about 20 s for an
 unknown reason, reconnected by itself, then stayed up for a 90 s watch. The software session
-reports the backend, running on EMQX, sees node-2 online and stores F2/F3. P1 readings were
-first rejected as out of range, so it set P1's offset to 0.38 V and its lower limit to
--50 kPa in the database. **Not yet tested:** the web app with the real node, valve commands
+reports the backend, running on EMQX, sees node-2 online and receives its messages. No
+sensors were connected during this, so those values mean nothing, and the backend correctly
+rejected P1's disconnected reading as out of range. In the database, P1's offset is 0.38 V
+(provisional until `zero P1` on the 5.0 V supply) and its lower limit is -20 kPa. **Not yet
+tested:** real sensor values at the backend, the web app with the real node, valve commands
 and acks over MQTT, and the last will.
 
 ### `bringup/bringup.ino` (step 1, on the board now)
