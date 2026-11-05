@@ -10,9 +10,10 @@ turn on "maximise compatibility" or choose the 2.4 GHz band.
 | `bringup/` | Serial-only wiring test: flow pulses, pressure volts, valve click. No Wi-Fi |
 | `node/` | The node firmware. `config.h` holds the node name, pin table and timings |
 
-Sensor codes follow `docs/mqtt-contract.md` v1.1. Zone A on node-2 is
-F2 (inlet flow, GPIO18), F3 (outlet flow, GPIO19), P1 (inlet pressure, GPIO32),
-SV1 (solenoid, GPIO26). The hardware brief still uses the old names F6 and P2.
+Sensor codes follow `docs/mqtt-contract.md`. Node-2 carries F1 (trunk flow, GPIO4),
+F8 (return flow, GPIO14), and Zone A: F2 (inlet flow, GPIO18), F3 (outlet flow, GPIO19),
+P1 (inlet pressure, GPIO32), SV1 (solenoid relay, GPIO26). All four flow sensors use the
+12k/22k divider. The hardware brief still uses the old names F6 and P2.
 
 ## Arduino IDE setup (Windows)
 

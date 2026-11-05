@@ -41,10 +41,14 @@ struct ValveConfig {
   ValveDriver driver;  // which GPIO level powers the coil
 };
 
-// node-2, Zone A. Zone B rows are ready to uncomment when its sensors arrive.
+// node-2: trunk and return flow, plus Zone A. Zone B rows are ready to uncomment when its
+// sensors arrive. Every flow pin has the same 12k/22k divider. Unwired flow pins float and
+// can count noise, so comment out any sensor that isn't connected.
 const FlowSensorConfig FLOW_SENSORS[] = {
+  {"F1",  4, "Loop", FLOW_IN},   // trunk
   {"F2", 18, "A", FLOW_IN},
   {"F3", 19, "A", FLOW_OUT},
+  {"F8", 14, "Loop", FLOW_OUT},  // return
   // {"F4", 16, "B", FLOW_IN},
   // {"F5", 17, "B", FLOW_OUT},
 };

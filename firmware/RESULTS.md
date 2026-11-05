@@ -199,7 +199,10 @@ checked against DigiCert Global Root G2), NTP timestamps, readings every second,
 every 10 s with a retained last will, and valve commands with acknowledgements and
 duplicate handling, per `docs/mqtt-contract.md` v1.2.
 
-**Tested so far:** `node.ino` is flashed. It joined a phone hotspot and connected to EMQX
+**Added later, not yet tested on the board:** trunk flow F1 (GPIO4) and return flow F8
+(GPIO14) on node-2, and the leak indicator LEDs (GPIO23 green, GPIO13 red).
+
+**Tested so far:** an earlier build of `node.ino` was flashed. It joined a phone hotspot and connected to EMQX
 over TLS with the `node-2` login. The connection dropped once after about 20 s for an
 unknown reason, reconnected by itself, then stayed up for a 90 s watch. **Not yet tested:**
 whether messages arrive at the backend and web app, valve commands and acks over MQTT, and
