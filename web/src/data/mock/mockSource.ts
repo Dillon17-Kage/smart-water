@@ -111,6 +111,23 @@ export function createMockSource(): DataSource {
       return delay(simulator.sendValveCommand(valveId, action, user.username, force), 100);
     },
 
+    // The simulator's sensors are already calibrated, so these only act out the result.
+    async recordBaseline(zoneId) {
+      const user = requireUser();
+      if (!can(user.role, 'calibration.run')) throw new Error('Your role cannot calibrate sensors.');
+      const baseline = rig.baselines.find((b) => b.zoneId === zoneId);
+      if (!baseline) throw new Error("This zone doesn't have both flow sensors");
+      return delay({ ...baseline }, 300);
+    },
+
+    async zeroPressureSensor(sensorId) {
+      const user = requireUser();
+      if (!can(user.role, 'calibration.run')) throw new Error('Your role cannot calibrate sensors.');
+      const sensor = rig.sensors.find((s) => s.id === sensorId && s.type === 'pressure');
+      if (!sensor) throw new Error('Only pressure sensors can be zeroed');
+      return delay({ sensor: sensor.code, zeroVolts: 0.5 }, 300);
+    },
+
     connect(onEvent, onStatus) {
       onStatus('connecting');
       const timer = setTimeout(() => onStatus('live'), 300);

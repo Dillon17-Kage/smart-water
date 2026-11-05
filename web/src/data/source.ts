@@ -1,5 +1,6 @@
 import type {
   Alert,
+  Baseline,
   LeakEvent,
   MonitoringNode,
   Reading,
@@ -44,6 +45,11 @@ export interface DataSource {
    * `force`: the operator confirmed the pump is off, so the interlock is skipped.
    */
   sendValveCommand(valveId: number, action: ValveAction, force?: boolean): Promise<ValveCommand>;
+
+  /** Records the zone's normal inlet - outlet mismatch from the last 60 s. Throws with a user-facing message. */
+  recordBaseline(zoneId: number): Promise<Baseline>;
+  /** Makes the pressure sensor's last 10 s read as 0 kPa. Throws with a user-facing message. */
+  zeroPressureSensor(sensorId: number): Promise<{ sensor: string; zeroVolts: number }>;
 
   /** Subscribe to live pushes. Returns an unsubscribe function. */
   connect(onEvent: (event: LiveEvent) => void, onStatus: (status: ConnectionStatus) => void): () => void;

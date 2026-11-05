@@ -1,5 +1,5 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
-import type { Alert, LeakEvent, MonitoringNode, Reading, Rig, User, Valve, ValveCommand } from '../../types';
+import type { Alert, Baseline, LeakEvent, MonitoringNode, Reading, Rig, User, Valve, ValveCommand } from '../../types';
 import { LoginError, type DataSource } from '../source';
 
 /**
@@ -76,6 +76,9 @@ export function createApiSource(baseUrl: string): DataSource {
         method: 'POST',
         body: JSON.stringify({ action, force }),
       }),
+    recordBaseline: (zoneId) => request<Baseline>(`/api/zones/${zoneId}/baseline`, { method: 'POST' }),
+    zeroPressureSensor: (sensorId) =>
+      request<{ sensor: string; zeroVolts: number }>(`/api/sensors/${sensorId}/zero`, { method: 'POST' }),
 
     connect(onEvent, onStatus) {
       const connection = new HubConnectionBuilder()

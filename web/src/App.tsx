@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react
 import type { Permission } from './auth/permissions';
 import { Layout } from './components/Layout';
 import { AlertsPage } from './pages/AlertsPage';
+import { CalibrationPage } from './pages/CalibrationPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { NetworkPage } from './pages/NetworkPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="network" element={<RequirePermission permission="network.view"><NetworkPage /></RequirePermission>} />
             <Route path="alerts" element={<RequirePermission permission="alerts.view"><AlertsPage /></RequirePermission>} />
             <Route path="valves" element={<RequirePermission permission="valves.view"><ValvesPage /></RequirePermission>} />
+            <Route path="calibration" element={<RequirePermission permission="calibration.run"><CalibrationPage /></RequirePermission>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

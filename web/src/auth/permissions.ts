@@ -17,12 +17,13 @@ export type Permission =
   | 'alerts.acknowledge'
   | 'alerts.resolve'
   | 'valves.view'
-  | 'valves.operate';
+  | 'valves.operate'
+  | 'calibration.run';
 
 const grants: Record<RoleName, Permission[]> = {
-  administrator: ['dashboard.view', 'network.view', 'alerts.view', 'alerts.acknowledge', 'alerts.resolve', 'valves.view', 'valves.operate'],
+  administrator: ['dashboard.view', 'network.view', 'alerts.view', 'alerts.acknowledge', 'alerts.resolve', 'valves.view', 'valves.operate', 'calibration.run'],
   operator: ['dashboard.view', 'network.view', 'alerts.view', 'alerts.acknowledge', 'alerts.resolve', 'valves.view', 'valves.operate'],
-  technician: ['dashboard.view', 'network.view', 'alerts.view', 'alerts.acknowledge', 'valves.view'],
+  technician: ['dashboard.view', 'network.view', 'alerts.view', 'alerts.acknowledge', 'valves.view', 'calibration.run'],
   engineer: ['dashboard.view', 'network.view', 'alerts.view'],
 };
 

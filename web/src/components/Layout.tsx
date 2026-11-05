@@ -1,4 +1,4 @@
-import { Bell, Droplets, LayoutDashboard, LogOut, Network, OctagonAlert, ToggleRight, AlertTriangle, X } from 'lucide-react';
+import { Bell, Droplets, Gauge, LayoutDashboard, LogOut, Network, OctagonAlert, ToggleRight, AlertTriangle, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { roleLabel, type Permission } from '../auth/permissions';
@@ -15,6 +15,7 @@ const navItems: { to: string; label: string; icon: typeof Bell; permission: Perm
   { to: '/network', label: 'Network', icon: Network, permission: 'network.view' },
   { to: '/alerts', label: 'Alerts', icon: Bell, permission: 'alerts.view' },
   { to: '/valves', label: 'Valves', icon: ToggleRight, permission: 'valves.view' },
+  { to: '/calibration', label: 'Calibration', icon: Gauge, permission: 'calibration.run' },
 ];
 
 export function Layout() {

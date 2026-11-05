@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { dataSource } from '../data';
 import type { ConnectionStatus, LiveEvent } from '../data/source';
-import type { Alert, LeakEvent, MonitoringNode, Reading, Rig, Valve, ValveAction, ValveCommand } from '../types';
+import type { Alert, Baseline, LeakEvent, MonitoringNode, Reading, Rig, Valve, ValveAction, ValveCommand } from '../types';
 
 /** One second of readings: { t: epoch ms, values: sensorId -> value }. */
 export interface Frame {
@@ -30,6 +30,7 @@ type Action =
   | { type: 'failed'; error: string }
   | { type: 'connection'; status: ConnectionStatus }
   | { type: 'reset' }
+  | { type: 'baseline'; baseline: Baseline }
   | LiveEvent;
 
 const initial: State = {
@@ -84,6 +85,16 @@ function reducer(state: State, action: Action): State {
       return { ...state, connection: action.status };
     case 'reset':
       return initial;
+    case 'baseline':
+      return state.rig
+        ? {
+            ...state,
+            rig: {
+              ...state.rig,
+              baselines: [...state.rig.baselines.filter((b) => b.zoneId !== action.baseline.zoneId), action.baseline],
+            },
+          }
+        : state;
     case 'readings':
       return state.status === 'ready' ? { ...state, ...addReadings(state, action.readings) } : state;
     case 'node':
@@ -109,6 +120,7 @@ interface LiveDataValue extends State {
   acknowledgeAlert: (id: number) => Promise<void>;
   resolveAlert: (id: number) => Promise<void>;
   sendValveCommand: (valveId: number, action: ValveAction, force?: boolean) => Promise<ValveCommand>;
+  recordBaseline: (zoneId: number) => Promise<Baseline>;
 }
 
 const LiveDataContext = createContext<LiveDataValue | null>(null);
@@ -155,6 +167,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         const command = await dataSource.sendValveCommand(valveId, action, force);
         dispatch({ type: 'valveCommand', command });
         return command;
+      },
+      recordBaseline: async (zoneId) => {
+        const baseline = await dataSource.recordBaseline(zoneId);
+        dispatch({ type: 'baseline', baseline });
+        return baseline;
       },
     }),
     [state, load],
