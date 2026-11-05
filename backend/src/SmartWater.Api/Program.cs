@@ -22,6 +22,7 @@ using SmartWater.Api.Api;
 using SmartWater.Api.Auth;
 using SmartWater.Api.Database;
 using SmartWater.Api.Detection;
+using SmartWater.Api.Hosting;
 using SmartWater.Api.Ingestion;
 using SmartWater.Api.Live;
 using SmartWater.Api.Mqtt;
@@ -110,6 +111,7 @@ builder.Services.AddSingleton<NodeMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<NodeMonitor>());
 builder.Services.AddSingleton<MqttConnection>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MqttConnection>());
+builder.Services.AddHostedService<KeepAwake>();
 
 var app = builder.Build();
 
@@ -135,8 +137,12 @@ app.UseAuthorization();
 // ---------------------------------------------------------------- API
 var startedAt = DateTimeOffset.UtcNow;
 
-// Render calls this to check the service is up. It also reports whether the
-// database and the broker are reachable: the first things to check after deploying.
+// Render's health check and the keep-awake call use this. It doesn't touch the database,
+// because a query every few seconds would keep Neon awake and use up its free hours.
+app.MapGet("/api/ping", () => Results.Ok(new { status = "ok" }));
+
+// For people: reports whether the database and the broker are reachable, the first
+// things to check after deploying.
 app.MapGet("/api/health", async (NpgsqlDataSource db, MqttConnection mqtt, CancellationToken ct) =>
 {
     string database;

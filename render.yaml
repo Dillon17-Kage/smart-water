@@ -9,7 +9,7 @@ services:
     region: frankfurt           # same region as the Neon database
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ping  # no database query, so Neon can still sleep
     autoDeploy: true            # every push to GitHub redeploys
     envVars:
       - key: DATABASE_URL
