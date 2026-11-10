@@ -1,6 +1,6 @@
 # Node simulator (fake node-2)
 
-A .NET console app that pretends to be node-2 with F1, F8 and Zone A (F2, F3, P1, SV1). It talks to
+A .NET console app that pretends to be node-2 with F1, F8 and Zone A (F2, F3, P1, SV1), or with `--Node=node-3 --Zone=B` node-3 with Zone B (F4, F5, P2, SV2). It talks to
 the broker **exactly like the ESP32 firmware** (`docs/mqtt-contract.md`), so the backend
 and web app can be tested and demonstrated without the rig.
 
@@ -50,8 +50,8 @@ It connects, publishes `online`, then sends readings every second and status eve
   inlet − outlet = the leak. P1 drops 10 kPa per L/min of leak.
 - **Pressure:** about 60 kPa, sent as the sensor's voltage in mV (0.5 V + kPa / 172.37).
 - **SV1:** starts open, as the firmware opens every valve at boot. Closing it is
-  **rejected with `last_open_valve`** unless the command has `force: true`, because SV1 is
-  the only valve.
+  **rejected with `last_open_valve`** unless the command has `force: true`, because each node has
+  one valve. The backend sends `force: true` for every close its own interlock allows.
 - **Duplicate commands** (same `id`) get the same ack again without acting twice.
 - **Leak indicator:** it subscribes to `indicator` and prints each message, where the real
   node would switch its red and green LEDs.

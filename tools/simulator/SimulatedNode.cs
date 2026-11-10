@@ -19,12 +19,12 @@ public class SimulatedNode
     const string Firmware = "sim-1.0.0";
 
     public string Name { get; }
-    public string FlowIn { get; } = "F2";
-    public string FlowOut { get; } = "F3";
-    public string FlowTrunk { get; } = "F1";
-    public string FlowReturn { get; } = "F8";
-    public string PressureIn { get; } = "P1";
-    public string Valve { get; } = "SV1";
+    public string FlowIn { get; }
+    public string FlowOut { get; }
+    public string? FlowTrunk { get; }    // F1 and F8 are only on node-2, with Zone A
+    public string? FlowReturn { get; }
+    public string PressureIn { get; }
+    public string Valve { get; }
 
     // ---- What the keyboard controls ------------------------------------------
     public bool PumpOn { get; set; } = true;
@@ -47,7 +47,18 @@ public class SimulatedNode
     // gets the same answer and isn't acted on twice (contract §7).
     readonly Queue<(string Id, AckMessage Ack)> recentCommands = new();
 
-    public SimulatedNode(string name) => Name = name;
+    /// <param name="zone">A (node-2, with F1 and F8), B (node-3) or C (node-4): picks the sensor codes.</param>
+    public SimulatedNode(string name, string zone = "A")
+    {
+        Name = name;
+        (FlowIn, FlowOut, PressureIn, Valve) = zone.ToUpperInvariant() switch
+        {
+            "B" => ("F4", "F5", "P2", "SV2"),
+            "C" => ("F6", "F7", "P3", "SV3"),
+            _ => ("F2", "F3", "P1", "SV1"),
+        };
+        if (Valve == "SV1") (FlowTrunk, FlowReturn) = ("F1", "F8");
+    }
 
     // ---- Physics -------------------------------------------------------------
 
@@ -97,13 +108,15 @@ public class SimulatedNode
             Seq: seq++,
             Ts: SendTimestamps ? DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'") : null,
             IntervalMs: intervalMs,
-            Flow:
-            [
-                new(FlowTrunk, pulsesTrunk, totalTrunk),
-                new(FlowIn, pulsesIn, totalIn),
-                new(FlowOut, pulsesOut, totalOut),
-                new(FlowReturn, pulsesReturn, totalReturn),
-            ],
+            Flow: FlowTrunk is null || FlowReturn is null
+                ? [new(FlowIn, pulsesIn, totalIn), new(FlowOut, pulsesOut, totalOut)]
+                :
+                [
+                    new(FlowTrunk, pulsesTrunk, totalTrunk),
+                    new(FlowIn, pulsesIn, totalIn),
+                    new(FlowOut, pulsesOut, totalOut),
+                    new(FlowReturn, pulsesReturn, totalReturn),
+                ],
             Pressure: [new(PressureIn, (int)Math.Round(volts * 1000))],
             Valves: [new(Valve, ValveState)]);
     }
@@ -172,9 +185,9 @@ public class SimulatedNode
         bool wantOpen = cmd.Action == "open";
         if (wantOpen == ValveOpen) return Done();   // already there: nothing to do
 
-        // SV1 is this node's only valve, so closing it always leaves none open.
-        // With the pump running that dead-heads the pump, so only a forced close
-        // (operator confirmed the pump is off) gets through.
+        // This node has one valve, so closing it always leaves none open on the node.
+        // Only a forced close gets through: the backend sends force when its rig-wide
+        // interlock allowed it (other zones open, or the operator confirmed the pump is off).
         if (!wantOpen && LastOpenValveCheck && cmd.Force != true)
             return Rejected("last_open_valve", ValveState);
 
@@ -186,7 +199,7 @@ public class SimulatedNode
     public string Describe()
     {
         var (inLpm, outLpm, kpa) = TrueValues();
-        return $"F2 {inLpm:0.00} L/min | F3 {outLpm:0.00} L/min | P1 {kpa:0} kPa | {Valve} {ValveState} | " +
+        return $"{FlowIn} {inLpm:0.00} L/min | {FlowOut} {outLpm:0.00} L/min | {PressureIn} {kpa:0} kPa | {Valve} {ValveState} | " +
                $"pump {(PumpOn ? "on" : "OFF")} | leak {(LeakOpen ? $"OPEN {LeakLpm:0.00} L/min" : $"shut (set {LeakLpm:0.00})")}" +
                (ValveFault ? " | VALVE FAULT" : "") + (SendTimestamps ? "" : " | no NTP");
     }

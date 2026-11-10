@@ -4,6 +4,7 @@
 //
 //   dotnet run                      uses the EMQX settings in user-secrets
 //   dotnet run -- --Mqtt:Host=localhost --Mqtt:Port=1883 --Mqtt:UseTls=false
+//   dotnet run -- --Node=node-3 --Zone=B    pretend to be node-3 with Zone B (C: node-4)
 //
 // Keys: see PrintHelp() below, or press H while it runs.
 
@@ -38,7 +39,7 @@ if (host == "")
     return 1;
 }
 
-var node = new SimulatedNode(nodeName);
+var node = new SimulatedNode(nodeName, config["Zone"] ?? "A");
 string topic(string kind) => $"smartwater/{nodeName}/{kind}";
 
 // ---- MQTT -------------------------------------------------------------------

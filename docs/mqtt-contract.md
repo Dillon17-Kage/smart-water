@@ -1,6 +1,6 @@
 # MQTT contract (node ↔ backend)
 
-**Version 1.4, 5 Nov 2026.** This is the shared contract between the ESP32 firmware
+**Version 1.5, 10 Nov 2026.** This is the shared contract between the ESP32 firmware
 (`firmware/`) and the backend (`backend/`, plus the simulator in `tools/simulator/`).
 Both sides must match it exactly. It's written by the software session from §5.4 of
 `docs/hardware-brief.md`. **Neither session edits it without telling the user first.**
@@ -10,7 +10,7 @@ Both sides must match it exactly. It's written by the software session from §5.
 | Item | Value |
 |---|---|
 | Broker | EMQX Cloud Serverless, TLS on port **8883**, username + password. The server certificate chains to **DigiCert Global Root G2** (the CA the ESP32 must trust) |
-| Node client id | `sw-node-2` (the `nodes.mqtt_client_id` column) |
+| Node client id | `sw-` + the node name: `sw-node-2`, `sw-node-3`, `sw-node-4` (the `nodes.mqtt_client_id` column) |
 | Backend client id | `sw-backend-` + a random suffix |
 | Keep-alive | **15 s**. The broker publishes the last will about 1.5 × keep-alive after the node disappears |
 | Clean session | `true`. The node subscribes to its `cmd` and `indicator` topics again **after every connect** |
@@ -19,7 +19,7 @@ Both sides must match it exactly. It's written by the software session from §5.
 `{node}` is the node name from the database, e.g. `node-2`. All topics are lower case.
 
 Only one client may use a client id at a time. The simulator also connects as
-`sw-node-2`, so **run the simulator or the real node, never both.**
+the real node's id (`sw-node-2` by default), so **run the simulator or that real node, never both.**
 
 ## 2. Topics
 
@@ -45,11 +45,13 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
   |---|---|---|---|---|---|---|
   | Trunk | `F1` | | | | node-2 | 4 |
   | Zone A | `F2` | `F3` | `P1` | `SV1` | node-2 | 18 / 19 / 32 / 26 |
-  | Zone B | `F4` | `F5` | `P2` | `SV2` | node-2 | 16 / 17 / 33 / 25 |
-  | Zone C | `F6` | `F7` | `P3` | `SV3` | node-3 | 21 / 22 / 34 / 27 |
+  | Zone B | `F4` | `F5` | `P2` | `SV2` | node-3 | 16 / 17 / 33 / 25 |
+  | Zone C | `F6` | `F7` | `P3` | `SV3` | node-4 | 21 / 22 / 34 / 27 |
   | Return | | `F8` | | | node-2 | 14 |
 
-  The rig being built now has F1, F8 and Zone A, all on node-2. There is no node-1. This **replaces the design document's numbering**
+  One board per zone: node-2 has Zone A plus F1 and F8, node-3 has Zone B, node-4 has
+  Zone C. There is no node-1. Every node also has a green LED on GPIO 23 and a red one on
+  GPIO 13 (§9). This **replaces the design document's numbering**
   (F2/F6/P2 for Zone A) that the hardware brief still uses.
 - **The receiver ignores keys it doesn't know.** Fields can be added later without
   breaking the other side. Renaming or removing a field is a contract change.
@@ -152,7 +154,7 @@ counts as a sign of life. The node is marked offline when the last will arrives,
 | `id` | string | Command id, a UUID (`valve_commands.correlation_id`). Echoed in the ack |
 | `valve` | string | Valve code |
 | `action` | string | `open` or `close` |
-| `force` | boolean, optional, default `false` | Skip the last-open-valve check. The backend sends `true` only after the operator confirms **the pump is off** |
+| `force` | boolean, optional, default `false` | Skip the node's last-open-valve check. The backend sends `true` when its rig-wide interlock has already allowed this close (§8): either other zones stay open, or the operator confirmed **the pump is off** |
 
 ## 7. `ack`: reply to every `cmd`, within 5 s
 
@@ -188,12 +190,14 @@ Rules:
 
 | Layer | Check |
 |---|---|
-| Web app | Before a close that would leave no zone open, it asks the operator to confirm the pump is **off**, then sends `force: true` |
-| Backend | Refuses a close that would leave fewer open zones than `valve.interlock_min_open_zones` (1), unless forced by an operator or administrator. Also refuses commands when the node is offline. A refusal is recorded as a `rejected` command and never sent to the node |
+| Web app | Before a close that would leave no zone open, it asks the operator to confirm the pump is **off**, then sends `force: true` to the backend |
+| Backend | Refuses a close that would leave fewer open zones than `valve.interlock_min_open_zones` (1), unless the operator confirmed the pump is off. A valve with a close command still waiting for its ack counts as closed, so two closes at once can't both pass. Also refuses commands when the node is offline. A refusal is recorded as a `rejected` command and never sent to the node. Every close it does send carries `force: true` |
 | Node | Last-open-valve check on its own valves (§7). It never changes a valve because the broker or backend disappeared, and opens every valve at boot |
 
-The node's check is the last line of defence. It works even if a command reaches the
-broker some other way, e.g. from an MQTT test client.
+Each node has one valve, so the node can't see the other zones and its own check would
+refuse every close. Only the backend sees the whole rig, so it decides and sends
+`force: true`. The node's check still stops a close that reaches the broker some other
+way, e.g. from an MQTT test client that leaves `force` out.
 
 ## 9. `indicator`: leak state for the node's LEDs
 
@@ -208,8 +212,9 @@ message tells it what to show.
 |---|---|---|
 | `leak` | boolean | `true` while any zone served by this node has a **confirmed** leak. A suspected leak doesn't count. Back to `false` when the leak is resolved |
 
-A node serves a zone if it has one of that zone's sensors or valves. A node with no zone
-always gets `false`. F1 and F8 have no zone, so they don't affect this.
+A node serves a zone if it has one of that zone's sensors or valves, so each node's LEDs
+show **its own zone only**: a leak in Zone B turns node-3 red and leaves node-2 and node-4
+green. The web app shows the whole rig. F1 and F8 have no zone, so they don't affect this.
 
 The message is **retained**, so the node gets the current state straight after it
 subscribes. If the backend misses a change because the broker was unreachable, it publishes
@@ -232,3 +237,4 @@ The LEDs only report. The node never moves a valve because of this message.
 | 1.2 | 1 Nov 2026 | Broker moved from HiveMQ Cloud Serverless (retired, no new clusters) to EMQX Cloud Serverless. Only §1 changed: host and TLS root CA. Topics and messages unchanged |
 | 1.3 | 5 Nov 2026 | New retained `indicator` topic (backend → node) so a node can show the confirmed leak state on a red and a green LED. Existing messages unchanged |
 | 1.4 | 5 Nov 2026 | F1 and F8 moved from node-1 to node-2 (GPIO 4 and 14). There is no node-1 on the rig being built. Pressure divider corrected to 12k/22k (pin mV × 34/22). Message format unchanged |
+| 1.5 | 10 Nov 2026 | One board per zone: Zone B moves to node-3, Zone C to node-4 (pins unchanged). Because each node now has one valve, the backend sends `force: true` whenever its rig-wide interlock allows the close (§6, §8). Message format unchanged |

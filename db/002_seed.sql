@@ -14,8 +14,8 @@
 -- after confirming the pump is off (force: true in docs/mqtt-contract.md).
 --
 -- As the rig grows, run the scripts in db/rig/ (data only, no schema change):
---   rig/10_zone_b.sql        Zone B on node-2: F4, F5, P2, SV2
---   rig/20_zone_c.sql        Zone C on node-3: F6, F7, P3, SV3
+--   rig/10_zone_b.sql        Zone B on node-3: F4, F5, P2, SV2
+--   rig/20_zone_c.sql        Zone C on node-4: F6, F7, P3, SV3
 --   rig/30_trunk_return.sql  F1, F8 on node-2 (no trunk/return pressure)
 --
 -- !! Check before connecting the real rig !!

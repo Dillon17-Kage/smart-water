@@ -55,8 +55,12 @@ public sealed class ValveControl(NpgsqlDataSource db, RigCache rig, MqttConnecti
         return await connection.QueryAsync<ValveCommandDto>($"{Select} ORDER BY c.issued_at DESC LIMIT 100");
     }
 
-    /// <param name="force">The operator confirmed the pump is off: skip the interlock (here and on the node).</param>
-    public async Task<ValveCommandDto?> SendAsync(short valveId, string action, bool force, int userId)
+    // One command at a time through the interlock check, so two closes sent together
+    // can't both see the other valve as still open.
+    private readonly SemaphoreSlim interlockGate = new(1, 1);
+
+    /// <param name="pumpOff">The operator confirmed the pump is off: the interlock may let the last zone close.</param>
+    public async Task<ValveCommandDto?> SendAsync(short valveId, string action, bool pumpOff, int userId)
     {
         var valve = rig.Valve(valveId);
         if (valve is null) return null;
@@ -67,31 +71,48 @@ public sealed class ValveControl(NpgsqlDataSource db, RigCache rig, MqttConnecti
             "INSERT INTO valve_commands (valve_id, user_id, action) VALUES (@valveId, @userId, @action) RETURNING id, correlation_id",
             new { valveId, userId, action });
 
-        string? refusal = null;
-        if (node.Status != "online")
+        await interlockGate.WaitAsync();
+        try
         {
-            refusal = $"{node.Name} is offline, so the command could not be delivered";
+            string? refusal = null;
+            if (node.Status != "online")
+            {
+                refusal = $"{node.Name} is offline, so the command could not be delivered";
+            }
+            else if (action == "close" && valve.State != "closed" && !pumpOff)
+            {
+                // Zones that would still have an open valve after this one closes. A valve whose
+                // close is still waiting for its ack counts as closed already.
+                var closing = (await connection.QueryAsync<short>(
+                    "SELECT valve_id FROM valve_commands WHERE action = 'close' AND status = 'sent'")).ToHashSet();
+                int minOpen = rig.Detection.InterlockMinOpenZones;
+                int openZones = rig.Valves
+                    .Where(v => v.Id != valve.Id && v.State == "open" && !closing.Contains(v.Id))
+                    .Select(v => v.ZoneId).Distinct().Count();
+                if (openZones < minOpen)
+                    refusal = $"Interlock: at least {minOpen} zone{(minOpen == 1 ? "" : "s")} must stay open to protect the pump. Confirm the pump is off to override";
+            }
+
+            if (refusal is not null)
+            {
+                await connection.ExecuteAsync(
+                    "UPDATE valve_commands SET status = 'rejected', reject_reason = @refusal WHERE id = @id", new { refusal, id });
+                log.LogInformation("{Action} {Valve} refused: {Reason}", action, valve.Code, refusal);
+                return await PushAsync(connection, id);
+            }
+
+            // Marked "sent" before publishing (and before the gate opens): the node can ack
+            // within milliseconds, and an ack that finds the command still "pending" would be ignored.
+            await connection.ExecuteAsync("UPDATE valve_commands SET status = 'sent', sent_at = now() WHERE id = @id", new { id });
         }
-        else if (action == "close" && valve.State != "closed" && !force)
+        finally
         {
-            // Zones that would still have an open valve after this one closes.
-            int minOpen = rig.Detection.InterlockMinOpenZones;
-            int openZones = rig.Valves.Where(v => v.Id != valve.Id && v.State == "open").Select(v => v.ZoneId).Distinct().Count();
-            if (openZones < minOpen)
-                refusal = $"Interlock: at least {minOpen} zone{(minOpen == 1 ? "" : "s")} must stay open to protect the pump. Confirm the pump is off to override";
+            interlockGate.Release();
         }
 
-        if (refusal is not null)
-        {
-            await connection.ExecuteAsync(
-                "UPDATE valve_commands SET status = 'rejected', reject_reason = @refusal WHERE id = @id", new { refusal, id });
-            log.LogInformation("{Action} {Valve} refused: {Reason}", action, valve.Code, refusal);
-            return await PushAsync(connection, id);
-        }
-
-        // Marked "sent" before publishing: the node can ack within milliseconds, and an
-        // ack that finds the command still "pending" would be ignored.
-        await connection.ExecuteAsync("UPDATE valve_commands SET status = 'sent', sent_at = now() WHERE id = @id", new { id });
+        // Each node has one valve, so its own check would refuse every close. This close has
+        // passed the rig-wide check above, so tell the node to skip its check (contract §8).
+        bool force = action == "close";
         var command = new CommandMessage(correlationId.ToString(), valve.Code, action, force);
         if (!await mqtt.PublishAsync($"smartwater/{node.Name}/cmd", ContractJson.Write(command)))
         {
@@ -101,7 +122,7 @@ public sealed class ValveControl(NpgsqlDataSource db, RigCache rig, MqttConnecti
             return await PushAsync(connection, id);
         }
 
-        log.LogInformation("Sent {Action} {Valve}{Force}", action, valve.Code, force ? " (forced: pump is off)" : "");
+        log.LogInformation("Sent {Action} {Valve}{PumpOff}", action, valve.Code, pumpOff ? " (operator confirmed the pump is off)" : "");
         _ = WatchForTimeoutAsync(id, valve);
         return await PushAsync(connection, id);
     }

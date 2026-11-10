@@ -5,12 +5,12 @@ import type { Baseline, DetectionSettings, MonitoringNode, RoleName, Sensor, Val
  * the water path:
  *   F1 trunk, F2/F3 Zone A in/out, F4/F5 Zone B in/out, F6/F7 Zone C in/out, F8 return
  *   P1-P3 zone inlet pressure (A-C); no trunk or return pressure sensor
- *   node-1 at the tank, node-2 Zones A+B (SV1, SV2), node-3 Zone C (SV3)
+ *   one board per zone: node-2 Zone A + F1, F8; node-3 Zone B; node-4 Zone C
  *
  * VITE_SIM_STAGE picks how much of it exists, so the simulator matches the bench:
- *   zone-a    (default) Zone A only: F2, F3, P1, SV1 on node-2
- *   two-zone  + Zone B: F4, F5, P2, SV2 on node-2
- *   full      + Zone C on node-3, + node-1 with F1, F8
+ *   zone-a    (default) node-2: Zone A (F2, F3, P1, SV1) plus F1, F8
+ *   two-zone  + node-3 with Zone B: F4, F5, P2, SV2
+ *   full      + node-4 with Zone C: F6, F7, P3, SV3
  */
 export type RigStage = 'zone-a' | 'two-zone' | 'full';
 
@@ -27,9 +27,10 @@ export const zones: Zone[] = [
 ];
 
 const allNodes: (MonitoringNode & { stage: RigStage })[] = [
-  { id: 1, name: 'node-1', macAddress: '02:00:00:00:00:01', mqttClientId: 'sw-node-1', status: 'online', lastSeen: null, stage: 'full' },
+
   { id: 2, name: 'node-2', macAddress: '02:00:00:00:00:02', mqttClientId: 'sw-node-2', status: 'online', lastSeen: null, stage: 'zone-a' },
-  { id: 3, name: 'node-3', macAddress: '02:00:00:00:00:03', mqttClientId: 'sw-node-3', status: 'online', lastSeen: null, stage: 'full' },
+  { id: 3, name: 'node-3', macAddress: '8c:94:df:6c:a3:10', mqttClientId: 'sw-node-3', status: 'online', lastSeen: null, stage: 'two-zone' },
+  { id: 4, name: 'node-4', macAddress: '02:00:00:00:00:04', mqttClientId: 'sw-node-4', status: 'online', lastSeen: null, stage: 'full' },
 ];
 export const nodes: MonitoringNode[] = allNodes.filter((n) => builtBy(n.stage)).map(({ stage: _s, ...n }) => n);
 
@@ -42,24 +43,24 @@ const pressure = (id: number, code: string, nodeId: number, zoneId: number | nul
 });
 
 const allSensors: SensorDef[] = [
-  flow(1, 'F1', 1, null, 'trunk', 'full'),
+  flow(1, 'F1', 2, null, 'trunk', 'zone-a'),
   flow(2, 'F2', 2, 1, 'zone_inlet', 'zone-a'),
-  flow(3, 'F4', 2, 2, 'zone_inlet', 'two-zone'),
-  flow(4, 'F6', 3, 3, 'zone_inlet', 'full'),
-  flow(5, 'F8', 1, null, 'return', 'full'),
+  flow(3, 'F4', 3, 2, 'zone_inlet', 'two-zone'),
+  flow(4, 'F6', 4, 3, 'zone_inlet', 'full'),
+  flow(5, 'F8', 2, null, 'return', 'zone-a'),
   flow(6, 'F3', 2, 1, 'zone_outlet', 'zone-a'),
-  flow(7, 'F5', 2, 2, 'zone_outlet', 'two-zone'),
-  flow(8, 'F7', 3, 3, 'zone_outlet', 'full'),
+  flow(7, 'F5', 3, 2, 'zone_outlet', 'two-zone'),
+  flow(8, 'F7', 4, 3, 'zone_outlet', 'full'),
   pressure(10, 'P1', 2, 1, 'zone_inlet', 'zone-a'),
-  pressure(11, 'P2', 2, 2, 'zone_inlet', 'two-zone'),
-  pressure(12, 'P3', 3, 3, 'zone_inlet', 'full'),
+  pressure(11, 'P2', 3, 2, 'zone_inlet', 'two-zone'),
+  pressure(12, 'P3', 4, 3, 'zone_inlet', 'full'),
 ];
 export const sensors: Sensor[] = allSensors.filter((s) => builtBy(s.stage)).map(({ stage: _s, ...s }) => s);
 
 const allValves: (Valve & { stage: RigStage })[] = [
   { id: 1, code: 'SV1', nodeId: 2, zoneId: 1, state: 'open', stage: 'zone-a' },
-  { id: 2, code: 'SV2', nodeId: 2, zoneId: 2, state: 'open', stage: 'two-zone' },
-  { id: 3, code: 'SV3', nodeId: 3, zoneId: 3, state: 'open', stage: 'full' },
+  { id: 2, code: 'SV2', nodeId: 3, zoneId: 2, state: 'open', stage: 'two-zone' },
+  { id: 3, code: 'SV3', nodeId: 4, zoneId: 3, state: 'open', stage: 'full' },
 ];
 export const valves: Valve[] = allValves.filter((v) => builtBy(v.stage)).map(({ stage: _s, ...v }) => v);
 
