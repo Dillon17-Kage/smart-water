@@ -8,6 +8,7 @@
 | `rig/10_zone_b.sql` | Adds node-3 with Zone B (F4, F5, P2, SV2) |
 | `rig/20_zone_c.sql` | Adds node-4 (ESP32-C3) with Zone C (F6 GPIO5, F7 GPIO6, P3 GPIO3, SV3 GPIO7). Only once the board exists |
 | `rig/30_trunk_return.sql` | Adds F1 and F8 to node-2. No trunk/return pressure sensors |
+| `tools/flow_sensors_unwired.sql` | Switches off F4-F7 until they are wired, so pin noise can't look like a leak |
 | `tools/reset_demo_data.sql` | Clears readings, leaks, alerts and commands before a presentation |
 | `tests/test_current_rig.sql` | Simulated 0.4 L/min leak in Zone A on the current rig; rolls back |
 | `tests/test_full_rig.sql` | Simulated 0.8 L/min leak in Zone B on the full rig, plus constraint checks; rolls back |
