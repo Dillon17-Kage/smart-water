@@ -3,7 +3,7 @@
 // The node is "dumb" on purpose: it counts flow pulses, reads pressure volts, drives
 // valves and reports. Leak detection and calibration live in the backend.
 // Which sensors and valves this board has comes from config.h.
-// Message format: docs/mqtt-contract.md (v1.3).
+// Message format: docs/mqtt-contract.md (v1.4).
 //
 // Serial Monitor: 115200 baud, line ending "Newline". Type "help" for commands.
 
@@ -555,11 +555,14 @@ void calStop() {
 
 // ================================================================ serial commands
 void printHelp() {
+  // The examples use this board's own codes, so node-3 shows SV2 and P2, not SV1 and P1.
+  const char *valve = VALVE_COUNT > 0 ? VALVES[0].code : "SV1";
+  const char *pressure = PRESSURE_COUNT > 0 ? PRESSURE_SENSORS[0].code : "P1";
   Serial.println("Commands:");
-  Serial.println("  open SV1           open a valve");
-  Serial.println("  close SV1          close a valve (refused if it is the last open one)");
-  Serial.println("  close SV1 force    close it anyway. ONLY with the pump OFF");
-  Serial.println("  zero P1            pressure sensor volts now (pump off, line open)");
+  Serial.printf("  open %-4s          open a valve\n", valve);
+  Serial.printf("  close %-4s         close a valve (refused if it is the last open one)\n", valve);
+  Serial.printf("  close %-4s force   close it anyway. ONLY with the pump OFF\n", valve);
+  Serial.printf("  zero %-4s          pressure sensor volts now (pump off, line open)\n", pressure);
   Serial.println("  cal start          start a flow calibration / jug test window");
   Serial.println("  cal stop           print pulses, mL and in/out ratio for the window");
   Serial.println("  status             node health and totals");

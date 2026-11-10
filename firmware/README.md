@@ -10,10 +10,20 @@ turn on "maximise compatibility" or choose the 2.4 GHz band.
 | `bringup/` | Serial-only wiring test: flow pulses, pressure volts, valve click. No Wi-Fi |
 | `node/` | The node firmware. `config.h` holds the node name, pin table and timings |
 
-Sensor codes follow `docs/mqtt-contract.md`. Node-2 carries F1 (trunk flow, GPIO4),
-F8 (return flow, GPIO14), and Zone A: F2 (inlet flow, GPIO18), F3 (outlet flow, GPIO19),
-P1 (inlet pressure, GPIO32), SV1 (solenoid relay, GPIO26). All four flow sensors use the
-12k/22k divider. The hardware brief still uses the old names F6 and P2.
+Sensor codes follow `docs/mqtt-contract.md`. The hardware brief still uses the old names
+F6 and P2 for Zone A. Every flow and pressure sensor has the 12k/22k divider.
+
+| Board | Carries | Pins |
+|---|---|---|
+| node-2 | F1 trunk, Zone A (F2, F3, P1, SV1), F8 return | F1 4, F2 18, F3 19, F8 14, P1 32, SV1 26 |
+| node-3 | Zone B (F4, F5, P2, SV2) | F4 16, F5 17, P2 33, SV2 25 |
+| node-4 | Zone C (F6, F7, P3, SV3) | F6 21, F7 22, P3 34, SV3 27 |
+
+Every board: green LED GPIO23, red LED GPIO13. Node-1 from the design document no longer
+exists: its F1 and F8 moved onto node-2.
+
+**Pick the board before flashing:** set `THIS_NODE` at the top of `node/config.h` to 2, 3 or 4.
+It selects the node name, the pin tables, and the EMQX login in `secrets.h`.
 
 ## Arduino IDE setup (Windows)
 

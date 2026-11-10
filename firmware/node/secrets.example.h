@@ -8,5 +8,14 @@
 
 #define MQTT_HOST "xxxxxxxx.ala.eu-central-1.emqxsl.com"  // EMQX deployment address
 #define MQTT_PORT 8883
+// One EMQX login per board (Access Control > Authentication). THIS_NODE in config.h picks it.
+#if THIS_NODE == 2
 #define MQTT_USER "node-2"
 #define MQTT_PASS "node-2-password-from-emqx"
+#elif THIS_NODE == 3
+#define MQTT_USER "node-3"
+#define MQTT_PASS "node-3-password-from-emqx"
+#elif THIS_NODE == 4
+#define MQTT_USER "node-4"
+#define MQTT_PASS "node-4-password-from-emqx"
+#endif
