@@ -15,10 +15,8 @@ UPDATE zones SET active = true WHERE code = 'C';
 INSERT INTO nodes (name, mac_address, mqtt_client_id) VALUES
     ('node-4', 'e8:f6:0a:4d:fa:6c', 'sw-node-4');
 
--- Added switched off: unwired flow pins read noise that looks like a leak. Switch them
--- on once wired (db/tools/flow_sensors_unwired.sql says how).
-INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_factor, min_valid, max_valid, active)
-SELECT v.code, n.id, z.id, 'flow', v.position, 'L/min', v.pin, 98, 0, 10, false
+INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_factor, min_valid, max_valid)
+SELECT v.code, n.id, z.id, 'flow', v.position, 'L/min', v.pin, 98, 0, 10
 FROM (VALUES
     ('F6', 'zone_inlet',  5),
     ('F7', 'zone_outlet', 6)
