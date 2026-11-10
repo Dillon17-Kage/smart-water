@@ -46,12 +46,15 @@ The backend subscribes to `smartwater/+/readings`, `smartwater/+/status` and
   | Trunk | `F1` | | | | node-2 | 4 |
   | Zone A | `F2` | `F3` | `P1` | `SV1` | node-2 | 18 / 19 / 32 / 26 |
   | Zone B | `F4` | `F5` | `P2` | `SV2` | node-3 | 16 / 17 / 33 / 25 |
-  | Zone C | `F6` | `F7` | `P3` | `SV3` | node-4 | 21 / 22 / 34 / 27 |
+  | Zone C | `F6` | `F7` | `P3` | `SV3` | node-4 | 5 / 6 / 3 / 7 |
   | Return | | `F8` | | | node-2 | 14 |
 
   One board per zone: node-2 has Zone A plus F1 and F8, node-3 has Zone B, node-4 has
-  Zone C. There is no node-1. Every node also has a green LED on GPIO 23 and a red one on
-  GPIO 13 (§9). This **replaces the design document's numbering**
+  Zone C. There is no node-1. node-2 and node-3 are ESP32 boards; node-4 is an ESP32-C3
+  SuperMini, which has different pins. Every node has a green and a red LED (§9): GPIO 23
+  and 13 on node-2 and node-3, GPIO 10 and 4 on node-4. The C3's ADC reads up to about
+  2.5 V at the pin, so P3 tops out at about 580 kPa, well above this rig's pressure.
+  This **replaces the design document's numbering**
   (F2/F6/P2 for Zone A) that the hardware brief still uses.
 - **The receiver ignores keys it doesn't know.** Fields can be added later without
   breaking the other side. Renaming or removing a field is a contract change.
@@ -237,4 +240,4 @@ The LEDs only report. The node never moves a valve because of this message.
 | 1.2 | 1 Nov 2026 | Broker moved from HiveMQ Cloud Serverless (retired, no new clusters) to EMQX Cloud Serverless. Only §1 changed: host and TLS root CA. Topics and messages unchanged |
 | 1.3 | 5 Nov 2026 | New retained `indicator` topic (backend → node) so a node can show the confirmed leak state on a red and a green LED. Existing messages unchanged |
 | 1.4 | 5 Nov 2026 | F1 and F8 moved from node-1 to node-2 (GPIO 4 and 14). There is no node-1 on the rig being built. Pressure divider corrected to 12k/22k (pin mV × 34/22). Message format unchanged |
-| 1.5 | 10 Nov 2026 | One board per zone: Zone B moves to node-3, Zone C to node-4 (pins unchanged). Because each node now has one valve, the backend sends `force: true` whenever its rig-wide interlock allows the close (§6, §8). Message format unchanged |
+| 1.5 | 10 Nov 2026 | One board per zone: Zone B moves to node-3, Zone C to node-4. node-4 is an ESP32-C3, so Zone C's pins change to F6 GPIO 5, F7 6, P3 3, SV3 7 (LEDs 10 and 4). Because each node now has one valve, the backend sends `force: true` whenever its rig-wide interlock allows the close (§6, §8). Message format unchanged |

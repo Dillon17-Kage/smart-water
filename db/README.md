@@ -6,7 +6,7 @@
 | `002_seed.sql` | Roles, zones, settings and the hardware **as built now**: Zone A on node-2 (F2 GPIO18, F3 GPIO19, P1 GPIO32, SV1 GPIO26) |
 | `rig/05_p1_zero.sql` | Sets P1's measured zero (0.38 V, provisional until measured on the final 5 V supply). Run it on any new database |
 | `rig/10_zone_b.sql` | Adds node-3 with Zone B (F4, F5, P2, SV2) |
-| `rig/20_zone_c.sql` | Adds node-4 with Zone C (F6, F7, P3, SV3). Only once the board exists |
+| `rig/20_zone_c.sql` | Adds node-4 (ESP32-C3) with Zone C (F6 GPIO5, F7 GPIO6, P3 GPIO3, SV3 GPIO7). Only once the board exists |
 | `rig/30_trunk_return.sql` | Adds F1 and F8 to node-2. No trunk/return pressure sensors |
 | `tools/reset_demo_data.sql` | Clears readings, leaks, alerts and commands before a presentation |
 | `tests/test_current_rig.sql` | Simulated 0.4 L/min leak in Zone A on the current rig; rolls back |
