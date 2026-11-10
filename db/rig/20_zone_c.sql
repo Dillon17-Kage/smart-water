@@ -6,14 +6,14 @@
 -- node-4 is an ESP32-C3 SuperMini, so its pins differ from node-2 and node-3.
 -- These match firmware/node/config.h.
 -- Run it only once the board exists: an active node that never connects raises a
--- node_offline alert. Replace the placeholder MAC with WiFi.macAddress() first.
+-- node_offline alert. The MAC is the real board's.
 
 BEGIN;
 
 UPDATE zones SET active = true WHERE code = 'C';
 
 INSERT INTO nodes (name, mac_address, mqtt_client_id) VALUES
-    ('node-4', '02:00:00:00:00:04', 'sw-node-4');
+    ('node-4', 'e8:f6:0a:4d:fa:6c', 'sw-node-4');
 
 INSERT INTO sensors (code, node_id, zone_id, type, position, unit, gpio_pin, k_factor, min_valid, max_valid)
 SELECT v.code, n.id, z.id, 'flow', v.position, 'L/min', v.pin, 98, 0, 10
