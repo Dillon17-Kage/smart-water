@@ -422,6 +422,11 @@ void setupNetwork() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);  // so valve commands aren't delayed by Wi-Fi power saving
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+#if CONFIG_IDF_TARGET_ESP32C3
+  // The C3 SuperMini's antenna is badly matched: at full transmit power it often never
+  // joins the network. Lower power is the known fix, and still reaches a nearby hotspot.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+#endif
   lastWifiAttemptMs = millis();
   Serial.printf("Wi-Fi: connecting to %s\n", WIFI_SSID);
 }
